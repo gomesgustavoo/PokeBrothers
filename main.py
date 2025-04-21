@@ -2,13 +2,16 @@ import uuid
 import sqlite3
 import customtkinter as ctk
 from tkinter import messagebox
-from services.pokeapi_service import fetch_card_data, import_card_to_db
+
+from services.pokeapi_service import import_card_to_db
+from pages.navbar import NavBar
+from pages.profile import ProfilePage
+from pages.search_cards import SearchCardsPage
 
 DB_NAME = "colecionadores.db"
 
 
 # ———————— DATA LAYER ————————
-
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
@@ -50,96 +53,10 @@ def check_login(email, senha):
     )
     row = cur.fetchone()
     conn.close()
-    if row:
-        return True, row
-    return False, None
-
-
-def get_colecionadores():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("SELECT id, nome, email, senha FROM colecionadores ORDER BY nome")
-    rows = cur.fetchall()
-    conn.close()
-    return rows
-
-
-def update_colecionador(cid, nome, email, senha):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute(
-        "UPDATE colecionadores SET nome=?, email=?, senha=? WHERE id=?",
-        (nome, email, senha, cid)
-    )
-    conn.commit()
-    conn.close()
-
-
-def delete_colecionador(cid):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("DELETE FROM colecionadores WHERE id=?", (cid,))
-    conn.commit()
-    conn.close()
-
-
-import uuid
-import sqlite3
-import customtkinter as ctk
-from tkinter import messagebox
-
-DB_NAME = "colecionadores.db"
-
-# ———————— DATA LAYER ————————
-
-def init_db():
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS colecionadores (
-            id    TEXT PRIMARY KEY,
-            nome  TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            senha TEXT NOT NULL
-        )
-    """)
-    conn.commit()
-    conn.close()
-
-
-def add_colecionador(nome, email, senha):
-    novo_id = str(uuid.uuid4())
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO colecionadores(id,nome,email,senha) VALUES (?,?,?,?)",
-            (novo_id, nome, email, senha)
-        )
-        conn.commit()
-        return True, "Colecionador registrado com sucesso!"
-    except sqlite3.IntegrityError:
-        return False, "Este email já está cadastrado."
-    finally:
-        conn.close()
-
-
-def check_login(email, senha):
-    conn = sqlite3.connect(DB_NAME)
-    cur = conn.cursor()
-    cur.execute(
-        "SELECT id, nome FROM colecionadores WHERE email=? AND senha=?",
-        (email, senha)
-    )
-    row = cur.fetchone()
-    conn.close()
-    if row:
-        return True, row
-    return False, None
+    return (True, row) if row else (False, None)
 
 
 # ———————— APPLICATION ————————
-
 class UserApp(ctk.CTk):
     def __init__(self):
         super().__init__()
@@ -148,16 +65,15 @@ class UserApp(ctk.CTk):
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
-        # variáveis gerais
+        # variáveis de estado / formulário
         self.var_email = ctk.StringVar()
         self.var_pwd = ctk.StringVar()
         self.var_name = ctk.StringVar()
         self.var_pwd_confirm = ctk.StringVar()
+
         self.record_id = None
         self.current_name = ""
         self.current_email = ""
-        self.var_search = ctk.StringVar()    # 1) nova var para a busca
-
 
         init_db()
         self._build_login_frame()
@@ -165,58 +81,73 @@ class UserApp(ctk.CTk):
         self.register_frame.place_forget()
         self.show_login()
 
-    # ——— LOGIN & REGISTER ———
-
+    # —— Login & Registro ——
     def _build_login_frame(self):
         self.login_frame = ctk.CTkFrame(self, corner_radius=20)
         self.login_frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        ctk.CTkLabel(self.login_frame, text="Login",
-                     font=ctk.CTkFont(size=18)).grid(row=0, column=0, columnspan=2, pady=(20,10))
-        ctk.CTkLabel(self.login_frame, text="Email:").grid(row=1, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.login_frame, width=200, textvariable=self.var_email).grid(row=1, column=1, pady=5)
-        ctk.CTkLabel(self.login_frame, text="Senha:").grid(row=2, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.login_frame, width=200, show="*", textvariable=self.var_pwd).grid(row=2, column=1, pady=5)
+        ctk.CTkLabel(self.login_frame, text="Login", font=ctk.CTkFont(size=18)) \
+            .grid(row=0, column=0, columnspan=2, pady=(20, 10))
+        ctk.CTkLabel(self.login_frame, text="Email:") \
+            .grid(row=1, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.login_frame, width=200, textvariable=self.var_email) \
+            .grid(row=1, column=1, pady=5)
+        ctk.CTkLabel(self.login_frame, text="Senha:") \
+            .grid(row=2, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.login_frame, width=200, show="*", textvariable=self.var_pwd) \
+            .grid(row=2, column=1, pady=5)
 
-        ctk.CTkButton(self.login_frame, text="Entrar", width=250,
-                      command=self._on_login).grid(row=3, column=0, columnspan=2, pady=(15,5))
+        ctk.CTkButton(
+            self.login_frame, text="Entrar", width=250, command=self._on_login
+        ).grid(row=3, column=0, columnspan=2, pady=(15, 5))
 
         rodape = ctk.CTkFrame(self.login_frame, fg_color="transparent")
-        rodape.grid(row=4, column=0, columnspan=2, pady=(10,20))
-        ctk.CTkLabel(rodape, text="Não registrado?").grid(row=0, column=0)
-        ctk.CTkButton(rodape, text="Registrar", width=80,
-                      command=self.show_register).grid(row=0, column=1, padx=5)
-        ctk.CTkLabel(self.login_frame, text="Esqueceu sua senha?").grid(
-            row=5, column=0, columnspan=2, pady=(5,10)
-        )
+        rodape.grid(row=4, column=0, columnspan=2, pady=(10, 20))
+        ctk.CTkLabel(rodape, text="Não registrado?") \
+            .grid(row=0, column=0)
+        ctk.CTkButton(
+            rodape, text="Registrar", width=80, command=self.show_register
+        ).grid(row=0, column=1, padx=5)
+        ctk.CTkLabel(self.login_frame, text="Esqueceu sua senha?") \
+            .grid(row=5, column=0, columnspan=2, pady=(5,10))
 
     def _build_register_frame(self):
         self.register_frame = ctk.CTkFrame(self, corner_radius=20)
         self.register_frame.place(relx=0.5, rely=0.5, anchor="center")
 
-        ctk.CTkLabel(self.register_frame, text="Registro de Colecionador",
-                     font=ctk.CTkFont(size=18)).grid(row=0, column=0, columnspan=2, pady=(20,10))
-        ctk.CTkLabel(self.register_frame, text="Nome:").grid(row=1, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.register_frame, width=200,
-                     textvariable=self.var_name).grid(row=1, column=1, pady=5)
-        ctk.CTkLabel(self.register_frame, text="Email:").grid(row=2, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.register_frame, width=200,
-                     textvariable=self.var_email).grid(row=2, column=1, pady=5)
-        ctk.CTkLabel(self.register_frame, text="Senha:").grid(row=3, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.register_frame, width=200,
-                     show="*", textvariable=self.var_pwd).grid(row=3, column=1, pady=5)
-        ctk.CTkLabel(self.register_frame, text="Confirme Senha:").grid(row=4, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.register_frame, width=200,
-                     show="*", textvariable=self.var_pwd_confirm).grid(row=4, column=1, pady=5)
+        ctk.CTkLabel(
+            self.register_frame, text="Registro de Colecionador",
+            font=ctk.CTkFont(size=18)
+        ).grid(row=0, column=0, columnspan=2, pady=(20,10))
+        ctk.CTkLabel(self.register_frame, text="Nome:") \
+            .grid(row=1, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.register_frame, width=200, textvariable=self.var_name) \
+            .grid(row=1, column=1, pady=5)
+        ctk.CTkLabel(self.register_frame, text="Email:") \
+            .grid(row=2, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.register_frame, width=200, textvariable=self.var_email) \
+            .grid(row=2, column=1, pady=5)
+        ctk.CTkLabel(self.register_frame, text="Senha:") \
+            .grid(row=3, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.register_frame, width=200, show="*", textvariable=self.var_pwd) \
+            .grid(row=3, column=1, pady=5)
+        ctk.CTkLabel(self.register_frame, text="Confirme Senha:") \
+            .grid(row=4, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.register_frame, width=200, show="*", textvariable=self.var_pwd_confirm) \
+            .grid(row=4, column=1, pady=5)
 
-        ctk.CTkButton(self.register_frame, text="Registre-se", width=250,
-                      command=self._on_register).grid(row=5, column=0, columnspan=2, pady=(15,5))
+        ctk.CTkButton(
+            self.register_frame, text="Registre-se", width=250,
+            command=self._on_register
+        ).grid(row=5, column=0, columnspan=2, pady=(15, 5))
 
         rodape = ctk.CTkFrame(self.register_frame, fg_color="transparent")
         rodape.grid(row=6, column=0, columnspan=2, pady=(10,20))
-        ctk.CTkLabel(rodape, text="Já possui conta?").grid(row=0, column=0)
-        ctk.CTkButton(rodape, text="Login", width=80,
-                      command=self.show_login).grid(row=0, column=1, padx=5)
+        ctk.CTkLabel(rodape, text="Já possui conta?") \
+            .grid(row=0, column=0)
+        ctk.CTkButton(
+            rodape, text="Login", width=80, command=self.show_login
+        ).grid(row=0, column=1, padx=5)
 
     def show_login(self):
         self.register_frame.place_forget()
@@ -229,19 +160,18 @@ class UserApp(ctk.CTk):
     def _on_login(self):
         ok, row = check_login(self.var_email.get().strip(), self.var_pwd.get().strip())
         if not ok:
-            return messagebox.showerror("Login", "Credenciais incorretas.")
-        # guarda dados do usuário atual
-        self.record_id = row[0]
-        self.current_name = row[1]
+            messagebox.showerror("Login", "Credenciais incorretas.")
+            return
+        self.record_id, self.current_name = row
         self.current_email = self.var_email.get().strip()
-        # destrói frames auth e monta UI principal
         self.login_frame.place_forget()
         self.register_frame.place_forget()
         self._build_main_ui()
 
     def _on_register(self):
         if self.var_pwd.get().strip() != self.var_pwd_confirm.get().strip():
-            return messagebox.showwarning("Cadastro", "As senhas não coincidem.")
+            messagebox.showwarning("Cadastro", "As senhas não coincidem.")
+            return
         ok, msg = add_colecionador(
             self.var_name.get().strip(),
             self.var_email.get().strip(),
@@ -249,138 +179,48 @@ class UserApp(ctk.CTk):
         )
         messagebox.showinfo("Cadastro", msg)
         if ok:
-            for v in (self.var_name, self.var_email, self.var_pwd, self.var_pwd_confirm):
-                v.set("")
+            self.var_name.set("")
+            self.var_email.set("")
+            self.var_pwd.set("")
+            self.var_pwd_confirm.set("")
             self.show_login()
 
-    # ——— NAVBAR + PERFIL ———
-
+    # —— NAVBAR & PAGES ——
     def _build_main_ui(self):
-        # configuração de grid
         self.columnconfigure(0, weight=0)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
 
-        # nav bar lateral
-        self.nav_frame = ctk.CTkFrame(self, corner_radius=0)
-        self.nav_frame.grid(row=0, column=0, sticky="ns")
-
-        menu = [
+        commands = [
             ("Perfil", self.show_profile),
             ("Pesquisar cartas", self.show_search_cards),
             ("Inventário", lambda: None),
             ("Lista de Desejos", lambda: None),
             ("Simular Troca", lambda: None),
-            ("Histórico de Troca", lambda: None),
+            ("Histórico de Troca", lambda: None)
         ]
-        for i, (txt, cmd) in enumerate(menu):
-            btn = ctk.CTkButton(self.nav_frame, text=txt, command=cmd, width=140)
-            btn.grid(row=i, column=0, pady=(10 if i==0 else 5, 0), padx=10, sticky="ew")
+        self.nav_frame = NavBar(self, commands)
+        self.nav_frame.grid(row=0, column=0, sticky="ns")
 
-        # frame de conteúdo
         self.content_frame = ctk.CTkFrame(self, corner_radius=12)
         self.content_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
 
-        # mostra perfil por padrão
         self.show_profile()
 
-    def show_profile(self):
+    def _show_page(self, page_class, *args):
         for w in self.content_frame.winfo_children():
             w.destroy()
+        page = page_class(self.content_frame, *args)
+        page.pack(fill="both", expand=True)
 
-        labels = ["Nome:", "Email:", "Senha:"]
-        values = [self.current_name, self.current_email, ""]
-        for i, (lbl, val) in enumerate(zip(labels, values)):
-            ctk.CTkLabel(self.content_frame, text=lbl).grid(row=i, column=0, sticky="e", padx=10, pady=10)
-            ent = ctk.CTkEntry(
-                self.content_frame,
-                width=300,
-                show="*" if lbl=="Senha:" else "",
-                textvariable=ctk.StringVar(value=val)
-            )
-            ent.grid(row=i, column=1, pady=10, padx=5)
-
-        # botões abaixo
-        ctk.CTkButton(
-            self.content_frame,
-            text="Redefinir Senha",
-            width=120,
-            command=lambda: messagebox.showinfo("Senha", "Fluxo de redefinição de senha")
-        ).grid(row=3, column=0, pady=20)
-        ctk.CTkButton(
-            self.content_frame,
-            text="Excluir Conta",
-            width=120,
-            command=lambda: messagebox.showwarning("Excluir", "Conta excluída (stub)")
-        ).grid(row=3, column=1, pady=20)
+    def show_profile(self):
+        self._show_page(ProfilePage, self.current_name, self.current_email)
 
     def show_search_cards(self):
-        # 3) limpar tudo
-        for w in self.content_frame.winfo_children():
-            w.destroy()
+        self._show_page(SearchCardsPage)
 
-        # título
-        ctk.CTkLabel(
-            self.content_frame,
-            text="Pesquisar Cartas",
-            font=ctk.CTkFont(size=18, weight="bold")
-        ).grid(row=0, column=0, columnspan=3, pady=(0,15))
-
-        # input + botão
-        ctk.CTkLabel(self.content_frame, text="Nome da Carta:")\
-            .grid(row=1, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(
-            self.content_frame,
-            textvariable=self.var_search,
-            width=250
-        ).grid(row=1, column=1, pady=5)
-        ctk.CTkButton(
-            self.content_frame,
-            text="Importar",
-            command=self.on_import
-        ).grid(row=1, column=2, padx=5)
-
-        # frame de resultados
-        self.results_frame = ctk.CTkScrollableFrame(
-            self.content_frame,
-            corner_radius=12
-        )
-        self.results_frame.grid(
-            row=2, column=0, columnspan=3,
-            sticky="nsew", pady=(15,0)
-        )
-
-        # permite expandir
-        self.content_frame.rowconfigure(2, weight=1)
-        self.content_frame.columnconfigure(1, weight=1)
-
-    def on_import(self):
-        name = self.var_search.get().strip()
-        if not name:
-            return messagebox.showwarning("Importar", "Digite o nome da carta.")
-
-        ok = import_card_to_db(name)
-        if not ok:
-            return messagebox.showerror(
-                "Importar", f"Carta “{name.title()}” não encontrada."
-            )
-
-        # recarrega resultados: mostramos só a carta importada
-        card = fetch_card_data(name)
-        label = f"{card['nome']}  |  Set: {card['colecao']}  |  US${card['preco_dolar']:.2f}"
-        ctk.CTkLabel(
-            self.results_frame,
-            text=label,
-            anchor="w"
-        ).pack(fill="x", pady=2, padx=5)
-
-        messagebox.showinfo(
-            "Importar",
-            f"Carta “{card['nome']}” importada com sucesso!"
-        )
-        # opcional: limpar a busca
-        # self.var_search.set("")
 
 if __name__ == "__main__":
+    init_db()
     app = UserApp()
     app.mainloop()
