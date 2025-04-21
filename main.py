@@ -2,6 +2,7 @@ import uuid
 import sqlite3
 import customtkinter as ctk
 from tkinter import messagebox
+from services.pokeapi_service import fetch_card_data, import_card_to_db
 
 DB_NAME = "colecionadores.db"
 
@@ -155,6 +156,8 @@ class UserApp(ctk.CTk):
         self.record_id = None
         self.current_name = ""
         self.current_email = ""
+        self.var_search = ctk.StringVar()    # 1) nova var para a busca
+
 
         init_db()
         self._build_login_frame()
@@ -264,6 +267,7 @@ class UserApp(ctk.CTk):
 
         menu = [
             ("Perfil", self.show_profile),
+            ("Pesquisar cartas", self.show_search_cards),
             ("Inventário", lambda: None),
             ("Lista de Desejos", lambda: None),
             ("Simular Troca", lambda: None),
@@ -310,6 +314,72 @@ class UserApp(ctk.CTk):
             command=lambda: messagebox.showwarning("Excluir", "Conta excluída (stub)")
         ).grid(row=3, column=1, pady=20)
 
+    def show_search_cards(self):
+        # 3) limpar tudo
+        for w in self.content_frame.winfo_children():
+            w.destroy()
+
+        # título
+        ctk.CTkLabel(
+            self.content_frame,
+            text="Pesquisar Cartas",
+            font=ctk.CTkFont(size=18, weight="bold")
+        ).grid(row=0, column=0, columnspan=3, pady=(0,15))
+
+        # input + botão
+        ctk.CTkLabel(self.content_frame, text="Nome da Carta:")\
+            .grid(row=1, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(
+            self.content_frame,
+            textvariable=self.var_search,
+            width=250
+        ).grid(row=1, column=1, pady=5)
+        ctk.CTkButton(
+            self.content_frame,
+            text="Importar",
+            command=self.on_import
+        ).grid(row=1, column=2, padx=5)
+
+        # frame de resultados
+        self.results_frame = ctk.CTkScrollableFrame(
+            self.content_frame,
+            corner_radius=12
+        )
+        self.results_frame.grid(
+            row=2, column=0, columnspan=3,
+            sticky="nsew", pady=(15,0)
+        )
+
+        # permite expandir
+        self.content_frame.rowconfigure(2, weight=1)
+        self.content_frame.columnconfigure(1, weight=1)
+
+    def on_import(self):
+        name = self.var_search.get().strip()
+        if not name:
+            return messagebox.showwarning("Importar", "Digite o nome da carta.")
+
+        ok = import_card_to_db(name)
+        if not ok:
+            return messagebox.showerror(
+                "Importar", f"Carta “{name.title()}” não encontrada."
+            )
+
+        # recarrega resultados: mostramos só a carta importada
+        card = fetch_card_data(name)
+        label = f"{card['nome']}  |  Set: {card['colecao']}  |  US${card['preco_dolar']:.2f}"
+        ctk.CTkLabel(
+            self.results_frame,
+            text=label,
+            anchor="w"
+        ).pack(fill="x", pady=2, padx=5)
+
+        messagebox.showinfo(
+            "Importar",
+            f"Carta “{card['nome']}” importada com sucesso!"
+        )
+        # opcional: limpar a busca
+        # self.var_search.set("")
 
 if __name__ == "__main__":
     app = UserApp()
