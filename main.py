@@ -1,226 +1,316 @@
-# user_crud_customtkinter.py
-"""
-User Management (CRUD) GUI using customtkinter and SQLite.
-
-Requirements
-------------
-pip install customtkinter
-
-Usage
------
-python user_crud_customtkinter.py
-"""
-
-import customtkinter as ctk
+import uuid
 import sqlite3
+import customtkinter as ctk
 from tkinter import messagebox
 
-DB_NAME = "users.db"
+DB_NAME = "colecionadores.db"
 
+
+# ———————— DATA LAYER ————————
 
 def init_db():
-    """Create the users table if it doesn't already exist."""
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users(
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            first_name TEXT NOT NULL,
-            last_name  TEXT NOT NULL,
-            email      TEXT UNIQUE NOT NULL,
-            username   TEXT UNIQUE NOT NULL,
-            password   TEXT NOT NULL
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS colecionadores (
+            id    TEXT PRIMARY KEY,
+            nome  TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            senha TEXT NOT NULL
         )
-        """
-    )
+    """)
     conn.commit()
     conn.close()
 
 
-# ---------- Data‑access helpers ---------- #
-
-def add_user(fn: str, ln: str, email: str, uname: str, pwd: str):
-    """Insert a new user; returns (success: bool, message: str)."""
+def add_colecionador(nome, email, senha):
+    novo_id = str(uuid.uuid4())
     try:
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
         cur.execute(
-            """INSERT INTO users(first_name, last_name, email, username, password)
-                   VALUES (?,?,?,?,?)""",
-            (fn, ln, email, uname, pwd),
+            "INSERT INTO colecionadores(id,nome,email,senha) VALUES (?,?,?,?)",
+            (novo_id, nome, email, senha)
         )
         conn.commit()
-        return True, "User added successfully."
-    except sqlite3.IntegrityError as err:
-        return False, str(err)
+        return True, "Colecionador registrado com sucesso!"
+    except sqlite3.IntegrityError:
+        return False, "Este email já está cadastrado."
     finally:
         conn.close()
 
 
-def get_users():
+def check_login(email, senha):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM users ORDER BY id DESC")
+    cur.execute(
+        "SELECT id, nome FROM colecionadores WHERE email=? AND senha=?",
+        (email, senha)
+    )
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        return True, row
+    return False, None
+
+
+def get_colecionadores():
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("SELECT id, nome, email, senha FROM colecionadores ORDER BY nome")
     rows = cur.fetchall()
     conn.close()
     return rows
 
 
-def update_user(uid: int, fn: str, ln: str, email: str, uname: str, pwd: str):
+def update_colecionador(cid, nome, email, senha):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     cur.execute(
-        """UPDATE users
-               SET first_name=?, last_name=?, email=?, username=?, password=?
-             WHERE id=?""",
-        (fn, ln, email, uname, pwd, uid),
+        "UPDATE colecionadores SET nome=?, email=?, senha=? WHERE id=?",
+        (nome, email, senha, cid)
     )
     conn.commit()
     conn.close()
 
 
-def delete_user(uid: int):
+def delete_colecionador(cid):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("DELETE FROM users WHERE id=?", (uid,))
+    cur.execute("DELETE FROM colecionadores WHERE id=?", (cid,))
     conn.commit()
     conn.close()
 
 
-# ---------- UI ---------- #
+import uuid
+import sqlite3
+import customtkinter as ctk
+from tkinter import messagebox
+
+DB_NAME = "colecionadores.db"
+
+# ———————— DATA LAYER ————————
+
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS colecionadores (
+            id    TEXT PRIMARY KEY,
+            nome  TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            senha TEXT NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def add_colecionador(nome, email, senha):
+    novo_id = str(uuid.uuid4())
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO colecionadores(id,nome,email,senha) VALUES (?,?,?,?)",
+            (novo_id, nome, email, senha)
+        )
+        conn.commit()
+        return True, "Colecionador registrado com sucesso!"
+    except sqlite3.IntegrityError:
+        return False, "Este email já está cadastrado."
+    finally:
+        conn.close()
+
+
+def check_login(email, senha):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, nome FROM colecionadores WHERE email=? AND senha=?",
+        (email, senha)
+    )
+    row = cur.fetchone()
+    conn.close()
+    if row:
+        return True, row
+    return False, None
+
+
+# ———————— APPLICATION ————————
+
 class UserApp(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("User Management")
+        self.title("PokeBrothers")
         self.geometry("900x500")
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
-        # form variables
-        self.record_id = None
-        self.var_fn = ctk.StringVar()
-        self.var_ln = ctk.StringVar()
+        # variáveis gerais
         self.var_email = ctk.StringVar()
-        self.var_uname = ctk.StringVar()
         self.var_pwd = ctk.StringVar()
+        self.var_name = ctk.StringVar()
+        self.var_pwd_confirm = ctk.StringVar()
+        self.record_id = None
+        self.current_name = ""
+        self.current_email = ""
 
-        self._build_layout()
-        self.populate_users()
+        init_db()
+        self._build_login_frame()
+        self._build_register_frame()
+        self.register_frame.place_forget()
+        self.show_login()
 
-    # ----- layout helpers ----- #
-    def _build_layout(self):
+    # ——— LOGIN & REGISTER ———
+
+    def _build_login_frame(self):
+        self.login_frame = ctk.CTkFrame(self, corner_radius=20)
+        self.login_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        ctk.CTkLabel(self.login_frame, text="Login",
+                     font=ctk.CTkFont(size=18)).grid(row=0, column=0, columnspan=2, pady=(20,10))
+        ctk.CTkLabel(self.login_frame, text="Email:").grid(row=1, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.login_frame, width=200, textvariable=self.var_email).grid(row=1, column=1, pady=5)
+        ctk.CTkLabel(self.login_frame, text="Senha:").grid(row=2, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.login_frame, width=200, show="*", textvariable=self.var_pwd).grid(row=2, column=1, pady=5)
+
+        ctk.CTkButton(self.login_frame, text="Entrar", width=250,
+                      command=self._on_login).grid(row=3, column=0, columnspan=2, pady=(15,5))
+
+        rodape = ctk.CTkFrame(self.login_frame, fg_color="transparent")
+        rodape.grid(row=4, column=0, columnspan=2, pady=(10,20))
+        ctk.CTkLabel(rodape, text="Não registrado?").grid(row=0, column=0)
+        ctk.CTkButton(rodape, text="Registrar", width=80,
+                      command=self.show_register).grid(row=0, column=1, padx=5)
+        ctk.CTkLabel(self.login_frame, text="Esqueceu sua senha?").grid(
+            row=5, column=0, columnspan=2, pady=(5,10)
+        )
+
+    def _build_register_frame(self):
+        self.register_frame = ctk.CTkFrame(self, corner_radius=20)
+        self.register_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+        ctk.CTkLabel(self.register_frame, text="Registro de Colecionador",
+                     font=ctk.CTkFont(size=18)).grid(row=0, column=0, columnspan=2, pady=(20,10))
+        ctk.CTkLabel(self.register_frame, text="Nome:").grid(row=1, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.register_frame, width=200,
+                     textvariable=self.var_name).grid(row=1, column=1, pady=5)
+        ctk.CTkLabel(self.register_frame, text="Email:").grid(row=2, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.register_frame, width=200,
+                     textvariable=self.var_email).grid(row=2, column=1, pady=5)
+        ctk.CTkLabel(self.register_frame, text="Senha:").grid(row=3, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.register_frame, width=200,
+                     show="*", textvariable=self.var_pwd).grid(row=3, column=1, pady=5)
+        ctk.CTkLabel(self.register_frame, text="Confirme Senha:").grid(row=4, column=0, sticky="e", padx=10)
+        ctk.CTkEntry(self.register_frame, width=200,
+                     show="*", textvariable=self.var_pwd_confirm).grid(row=4, column=1, pady=5)
+
+        ctk.CTkButton(self.register_frame, text="Registre-se", width=250,
+                      command=self._on_register).grid(row=5, column=0, columnspan=2, pady=(15,5))
+
+        rodape = ctk.CTkFrame(self.register_frame, fg_color="transparent")
+        rodape.grid(row=6, column=0, columnspan=2, pady=(10,20))
+        ctk.CTkLabel(rodape, text="Já possui conta?").grid(row=0, column=0)
+        ctk.CTkButton(rodape, text="Login", width=80,
+                      command=self.show_login).grid(row=0, column=1, padx=5)
+
+    def show_login(self):
+        self.register_frame.place_forget()
+        self.login_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+    def show_register(self):
+        self.login_frame.place_forget()
+        self.register_frame.place(relx=0.5, rely=0.5, anchor="center")
+
+    def _on_login(self):
+        ok, row = check_login(self.var_email.get().strip(), self.var_pwd.get().strip())
+        if not ok:
+            return messagebox.showerror("Login", "Credenciais incorretas.")
+        # guarda dados do usuário atual
+        self.record_id = row[0]
+        self.current_name = row[1]
+        self.current_email = self.var_email.get().strip()
+        # destrói frames auth e monta UI principal
+        self.login_frame.place_forget()
+        self.register_frame.place_forget()
+        self._build_main_ui()
+
+    def _on_register(self):
+        if self.var_pwd.get().strip() != self.var_pwd_confirm.get().strip():
+            return messagebox.showwarning("Cadastro", "As senhas não coincidem.")
+        ok, msg = add_colecionador(
+            self.var_name.get().strip(),
+            self.var_email.get().strip(),
+            self.var_pwd.get().strip()
+        )
+        messagebox.showinfo("Cadastro", msg)
+        if ok:
+            for v in (self.var_name, self.var_email, self.var_pwd, self.var_pwd_confirm):
+                v.set("")
+            self.show_login()
+
+    # ——— NAVBAR + PERFIL ———
+
+    def _build_main_ui(self):
+        # configuração de grid
+        self.columnconfigure(0, weight=0)
         self.columnconfigure(1, weight=1)
         self.rowconfigure(0, weight=1)
 
-        form_frame = ctk.CTkFrame(self, corner_radius=12)
-        form_frame.grid(row=0, column=0, padx=20, pady=20, sticky="n")
+        # nav bar lateral
+        self.nav_frame = ctk.CTkFrame(self, corner_radius=0)
+        self.nav_frame.grid(row=0, column=0, sticky="ns")
 
-        list_frame = ctk.CTkFrame(self, corner_radius=12)
-        list_frame.grid(row=0, column=1, padx=20, pady=20, sticky="nsew")
-        list_frame.rowconfigure(0, weight=1)
-        list_frame.columnconfigure(0, weight=1)
-
-        # --- form --- #
-        fields = [
-            ("First Name", self.var_fn),
-            ("Last Name", self.var_ln),
-            ("Email", self.var_email),
-            ("Username", self.var_uname),
-            ("Password", self.var_pwd),
+        menu = [
+            ("Perfil", self.show_profile),
+            ("Inventário", lambda: None),
+            ("Lista de Desejos", lambda: None),
+            ("Simular Troca", lambda: None),
+            ("Histórico de Troca", lambda: None),
         ]
+        for i, (txt, cmd) in enumerate(menu):
+            btn = ctk.CTkButton(self.nav_frame, text=txt, command=cmd, width=140)
+            btn.grid(row=i, column=0, pady=(10 if i==0 else 5, 0), padx=10, sticky="ew")
 
-        for idx, (label, var) in enumerate(fields):
-            ctk.CTkLabel(form_frame, text=label).grid(row=idx, column=0, pady=6, padx=(10, 2), sticky="e")
-            ctk.CTkEntry(form_frame, textvariable=var, width=180).grid(row=idx, column=1, pady=6, padx=(2, 10))
+        # frame de conteúdo
+        self.content_frame = ctk.CTkFrame(self, corner_radius=12)
+        self.content_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
 
-        # --- buttons --- #
-        btn_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
-        btn_frame.grid(row=len(fields), column=0, columnspan=2, pady=(15, 5))
+        # mostra perfil por padrão
+        self.show_profile()
 
-        ctk.CTkButton(btn_frame, text="Add", width=80, command=self.add_user).grid(row=0, column=0, padx=4)
-        ctk.CTkButton(btn_frame, text="Update", width=80, command=self.update_user).grid(row=0, column=1, padx=4)
-        ctk.CTkButton(btn_frame, text="Delete", width=80, command=self.delete_user).grid(row=0, column=2, padx=4)
-        ctk.CTkButton(btn_frame, text="Clear", width=80, command=self.clear_form).grid(row=0, column=3, padx=4)
+    def show_profile(self):
+        for w in self.content_frame.winfo_children():
+            w.destroy()
 
-        # --- user list --- #
-        self.user_list = ctk.CTkScrollableFrame(list_frame, corner_radius=12)
-        self.user_list.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
-
-    # ----- CRUD operations ----- #
-    def populate_users(self):
-        for widget in self.user_list.winfo_children():
-            widget.destroy()
-
-        for row in get_users():
-            uid, fn, ln, email, uname, _ = row
-            label_text = f"{uid:>3} | {fn} {ln} | {email} | {uname}"
-            item_btn = ctk.CTkButton(
-                self.user_list,
-                text=label_text,
-                anchor="w",
-                fg_color="transparent",
-                hover_color="#eeeeee",
-                text_color="#333333",
-                command=lambda r=row: self.load_user(r),
+        labels = ["Nome:", "Email:", "Senha:"]
+        values = [self.current_name, self.current_email, ""]
+        for i, (lbl, val) in enumerate(zip(labels, values)):
+            ctk.CTkLabel(self.content_frame, text=lbl).grid(row=i, column=0, sticky="e", padx=10, pady=10)
+            ent = ctk.CTkEntry(
+                self.content_frame,
+                width=300,
+                show="*" if lbl=="Senha:" else "",
+                textvariable=ctk.StringVar(value=val)
             )
-            item_btn.pack(fill="x", pady=1, padx=2)
+            ent.grid(row=i, column=1, pady=10, padx=5)
 
-    def load_user(self, row):
-        uid, fn, ln, email, uname, pwd = row
-        self.record_id = uid
-        self.var_fn.set(fn)
-        self.var_ln.set(ln)
-        self.var_email.set(email)
-        self.var_uname.set(uname)
-        self.var_pwd.set(pwd)
-
-    def add_user(self):
-        ok, msg = add_user(
-            self.var_fn.get(),
-            self.var_ln.get(),
-            self.var_email.get(),
-            self.var_uname.get(),
-            self.var_pwd.get(),
-        )
-        messagebox.showinfo("Add User", msg)
-        if ok:
-            self.clear_form()
-            self.populate_users()
-
-    def update_user(self):
-        if self.record_id is None:
-            messagebox.showwarning("Update", "Select a user first.")
-            return
-        update_user(
-            self.record_id,
-            self.var_fn.get(),
-            self.var_ln.get(),
-            self.var_email.get(),
-            self.var_uname.get(),
-            self.var_pwd.get(),
-        )
-        messagebox.showinfo("Update", "User updated.")
-        self.clear_form()
-        self.populate_users()
-
-    def delete_user(self):
-        if self.record_id is None:
-            messagebox.showwarning("Delete", "Select a user first.")
-            return
-        delete_user(self.record_id)
-        messagebox.showinfo("Delete", "User deleted.")
-        self.clear_form()
-        self.populate_users()
-
-    def clear_form(self):
-        self.record_id = None
-        for var in (self.var_fn, self.var_ln, self.var_email, self.var_uname, self.var_pwd):
-            var.set("")
-        self.focus()
+        # botões abaixo
+        ctk.CTkButton(
+            self.content_frame,
+            text="Redefinir Senha",
+            width=120,
+            command=lambda: messagebox.showinfo("Senha", "Fluxo de redefinição de senha")
+        ).grid(row=3, column=0, pady=20)
+        ctk.CTkButton(
+            self.content_frame,
+            text="Excluir Conta",
+            width=120,
+            command=lambda: messagebox.showwarning("Excluir", "Conta excluída (stub)")
+        ).grid(row=3, column=1, pady=20)
 
 
 if __name__ == "__main__":
-    init_db()
     app = UserApp()
     app.mainloop()
