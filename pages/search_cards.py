@@ -8,6 +8,8 @@ class SearchCardsPage(ctk.CTkFrame):
     """
     def __init__(self, master):
         super().__init__(master, corner_radius=12)
+        self.current_page = 1
+        self.current_search_term = ""
         self.var_search = ctk.StringVar()
         self._build()
 
@@ -47,27 +49,47 @@ class SearchCardsPage(ctk.CTkFrame):
         self.columnconfigure(1, weight=1)
 
     def on_search(self):
-        name = self.var_search.get().strip()
-        if not name:
+        self.current_search_term = self.var_search.get().strip()
+        if not self.current_search_term:
             return messagebox.showwarning("Buscar", "Digite o nome da carta.")
+        self.current_page = 1
+        self.load_page(self.current_page)
 
-        card = fetch_card_data(name)
-        if not card:
-            return messagebox.showerror(
-                "Buscar", f"Carta “{name.title()}” não encontrada."
-            )
+    def load_page(self, page):
+        cards = fetch_card_data(self.current_search_term, page)
 
-        # Limpa resultados anteriores
         for widget in self.results_frame.winfo_children():
             widget.destroy()
 
-        # Exibe informações da carta
-        info = f"{card['nome']} | Set: {card['colecao']} | US${card['preco_dolar']:.2f}"
-        ctk.CTkLabel(
-            self.results_frame,
-            text=info,
-            anchor="w"
-        ).pack(fill="x", pady=2, padx=5)
+        if not cards:
+            if page == 1:
+                return messagebox.showinfo("Resultados", f"Nenhuma carta encontrada para “{self.current_search_term.title()}”.")
+            else:
+                return messagebox.showinfo("Fim", "Você chegou ao fim dos resultados.")
 
-        # Opcional: limpar campo de busca
-        # self.var_search.set("")
+        for card in cards:
+            info = (
+                f"{card['nome']} | Tipo: {card['tipo']} | "
+                f"Set: {card['colecao']} | Raridade: {card['raridade']} | "
+                f"US${card['preco_dolar']:.2f}"
+            )
+            ctk.CTkLabel(self.results_frame, text=info, anchor="w", wraplength=400).pack(fill="x", pady=2, padx=5)
+
+        # Adiciona botões de navegação
+        nav_frame = ctk.CTkFrame(self.results_frame)
+        nav_frame.pack(pady=10)
+
+        if self.current_page > 1:
+            ctk.CTkButton(nav_frame, text="Anterior", command=self.go_previous_page).pack(side="left", padx=10)
+
+        ctk.CTkButton(nav_frame, text="Próxima", command=self.go_next_page).pack(side="left", padx=10)
+
+    def go_next_page(self):
+        self.current_page += 1
+        self.load_page(self.current_page)
+
+    def go_previous_page(self):
+        if self.current_page > 1:
+            self.current_page -= 1
+            self.load_page(self.current_page)
+

@@ -8,43 +8,43 @@ HEADERS = {"X-Api-Key": API_KEY}
 # ajuste conforme a cotação real
 DOLLAR_TO_REAL = 5.0
 
-def fetch_card_data(name: str) -> dict | None:
+def fetch_card_data(name: str, page: int = 1) -> list[dict]:
     """
-    Busca a primeira carta cujo nome contenha 'name' na TCG API.
-    Retorna um dict pronto para passar em add_carta() ou None se não achar.
+    Busca cartas cujo nome contenha 'name' na página indicada.
+    Retorna uma lista de dicionários com os dados das cartas.
     """
     params = {
-        "q": f'name:"{name.title()}"',  # busca exata pelo nome
-        "pageSize": 1
+        "q": f'name:*{name.title()}*',
+        "pageSize": 20,
+        "page": page
     }
     resp = requests.get(f"{BASE_URL}/cards", headers=HEADERS, params=params)
     if resp.status_code != 200:
-        return None
+        return []
 
     items = resp.json().get("data", [])
-    if not items:
-        return None
+    cards = []
+    for c in items:
+        tipos = ", ".join(c.get("types", []))
+        prices = c.get("tcgplayer", {}).get("prices", {})
+        price_info = prices.get("holofoil") or prices.get("normal") or {}
+        usd = price_info.get("market") or price_info.get("mid") or 0.0
+        brl = usd * DOLLAR_TO_REAL
 
-    print("ITEMS", items)
-    c = items[0]
-    # tipos unidos por vírgula
-    tipos = ", ".join(c.get("types", []))
-    # extraindo preços (tcgplayer)
-    prices = c.get("tcgplayer", {}).get("prices", {})
-    # tenta holofoil primeiro, depois normal
-    price_info = prices.get("holofoil") or prices.get("normal") or {}
-    usd = price_info.get("market") or price_info.get("mid") or 0.0
-    brl = usd * DOLLAR_TO_REAL
+        cards.append({
+            "id": c["id"],
+            "nome": c["name"],
+            "tipo": tipos,
+            "raridade": c.get("rarity", ""),
+            "colecao": c.get("set", {}).get("name", ""),
+            "preco_dolar": usd,
+            "preco_real": brl,
+            "imagem_url": c.get("images", {}).get("small", "")
+        })
 
-    return {
-        "id": c["id"],
-        "nome": c["name"],
-        "tipo": tipos,
-        "raridade": c.get("rarity", ""),
-        "colecao": c.get("set", {}).get("name", ""),
-        "preco_dolar": usd,
-        "preco_real": brl
-    }
+    return cards
+
+
 
 def import_card_to_db(name: str) -> bool:
     """
