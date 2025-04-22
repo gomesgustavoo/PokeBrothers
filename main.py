@@ -61,7 +61,7 @@ class UserApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("PokeBrothers")
-        self.geometry("900x500")
+        self.geometry("1300x800")
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 

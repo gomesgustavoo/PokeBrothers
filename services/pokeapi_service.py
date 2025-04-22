@@ -1,6 +1,6 @@
 import requests
 from uuid import uuid4
- 
+import math
 # substitua pela sua chave
 API_KEY = "b85a009f-df35-4234-aa2d-0f4b6799a776"
 BASE_URL = "https://api.pokemontcg.io/v2"
@@ -8,11 +8,7 @@ HEADERS = {"X-Api-Key": API_KEY}
 # ajuste conforme a cotação real
 DOLLAR_TO_REAL = 5.0
 
-def fetch_card_data(name: str, page: int = 1) -> list[dict]:
-    """
-    Busca cartas cujo nome contenha 'name' na página indicada.
-    Retorna uma lista de dicionários com os dados das cartas.
-    """
+def fetch_card_data(name: str, page: int = 1) -> tuple[list[dict], int]:
     params = {
         "q": f'name:*{name.title()}*',
         "pageSize": 20,
@@ -20,9 +16,14 @@ def fetch_card_data(name: str, page: int = 1) -> list[dict]:
     }
     resp = requests.get(f"{BASE_URL}/cards", headers=HEADERS, params=params)
     if resp.status_code != 200:
-        return []
+        return [], 1
 
-    items = resp.json().get("data", [])
+    data = resp.json()
+    
+    items = data.get("data", [])
+    total_count = data.get("totalCount", len(items))
+    total_pages = math.ceil(total_count / 20)
+
     cards = []
     for c in items:
         tipos = ", ".join(c.get("types", []))
@@ -41,9 +42,8 @@ def fetch_card_data(name: str, page: int = 1) -> list[dict]:
             "preco_real": brl,
             "imagem_url": c.get("images", {}).get("small", "")
         })
-
-    return cards
-
+    
+    return cards, total_pages
 
 
 def import_card_to_db(name: str) -> bool:
