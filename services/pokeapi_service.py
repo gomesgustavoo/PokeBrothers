@@ -8,9 +8,18 @@ HEADERS = {"X-Api-Key": API_KEY}
 # ajuste conforme a cotação real
 DOLLAR_TO_REAL = 5.0
 
-def fetch_card_data(name: str, page: int = 1) -> tuple[list[dict], int]:
+def fetch_card_data(name: str, page: int = 1, tipo: str = "", raridade: str = "", colecao: str = "") -> tuple[list[dict], int]:
+    query_parts = [f'name:*{name.title()}*']
+    if tipo:
+        query_parts.append(f'types:{tipo}')
+    if raridade:
+        query_parts.append(f'rarity:{raridade}')
+    if colecao:
+        query_parts.append(f'set.name:"{colecao}"')
+
+    query = " AND ".join(query_parts)
     params = {
-        "q": f'name:*{name.title()}*',
+        "q": query,
         "pageSize": 20,
         "page": page
     }
@@ -44,6 +53,15 @@ def fetch_card_data(name: str, page: int = 1) -> tuple[list[dict], int]:
         })
     
     return cards, total_pages
+
+def fetch_all_collections() -> list[str]:
+    resp = requests.get(f"{BASE_URL}/sets", headers=HEADERS)
+    if resp.status_code != 200:
+        return []
+
+    data = resp.json()
+    return [item["name"] for item in data.get("data", [])]
+
 
 
 def import_card_to_db(name: str) -> bool:
