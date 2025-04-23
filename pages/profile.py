@@ -2,10 +2,11 @@ import customtkinter as ctk
 from tkinter import messagebox
 
 class ProfilePage(ctk.CTkFrame):
-    def __init__(self, master, current_name, current_email):
+    def __init__(self, master, current_name, current_email, on_logout_callback):
         super().__init__(master, corner_radius=12)
         self.current_name = current_name
         self.current_email = current_email
+        self.on_logout = on_logout_callback
         self._build()
 
     def _build(self):
@@ -33,3 +34,11 @@ class ProfilePage(ctk.CTkFrame):
             width=120,
             command=lambda: messagebox.showwarning("Excluir", "Conta excluída (stub)")
         ).grid(row=3, column=1, pady=20)
+
+        # Botão de logout
+        ctk.CTkButton(
+            self,
+            text="Sair",
+            width=120,
+            command=self.on_logout
+        ).grid(row=3, column=2, pady=20)

@@ -7,6 +7,8 @@ from services.pokeapi_service import import_card_to_db
 from pages.navbar import NavBar
 from pages.profile import ProfilePage
 from pages.search_cards import SearchCardsPage
+from pages.login import LoginPage
+from pages.register import RegisterPage
 
 DB_NAME = "colecionadores.db"
 
@@ -65,125 +67,63 @@ class UserApp(ctk.CTk):
         ctk.set_appearance_mode("System")
         ctk.set_default_color_theme("blue")
 
-        # variáveis de estado / formulário
-        self.var_email = ctk.StringVar()
-        self.var_pwd = ctk.StringVar()
-        self.var_name = ctk.StringVar()
-        self.var_pwd_confirm = ctk.StringVar()
-
         self.record_id = None
         self.current_name = ""
         self.current_email = ""
 
         init_db()
-        self._build_login_frame()
-        self._build_register_frame()
-        self.register_frame.place_forget()
+        
+        # Criar frames de login e cadastro
+        self.login_frame = LoginPage(
+            self, 
+            on_login_success=self._on_login,
+            show_register_callback=self.show_register
+        )
+        
+        self.register_frame = RegisterPage(
+            self,
+            on_register_callback=self._on_register,
+            show_login_callback=self.show_login
+        )
+        
         self.show_login()
 
-    # —— Login & Registro ——
-    def _build_login_frame(self):
-        self.login_frame = ctk.CTkFrame(self, corner_radius=20)
-        self.login_frame.place(relx=0.5, rely=0.5, anchor="center")
-
-        ctk.CTkLabel(self.login_frame, text="Login", font=ctk.CTkFont(size=18)) \
-            .grid(row=0, column=0, columnspan=2, pady=(20, 10))
-        ctk.CTkLabel(self.login_frame, text="Email:") \
-            .grid(row=1, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.login_frame, width=200, textvariable=self.var_email) \
-            .grid(row=1, column=1, pady=5)
-        ctk.CTkLabel(self.login_frame, text="Senha:") \
-            .grid(row=2, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.login_frame, width=200, show="*", textvariable=self.var_pwd) \
-            .grid(row=2, column=1, pady=5)
-
-        ctk.CTkButton(
-            self.login_frame, text="Entrar", width=250, command=self._on_login
-        ).grid(row=3, column=0, columnspan=2, pady=(15, 5))
-
-        rodape = ctk.CTkFrame(self.login_frame, fg_color="transparent")
-        rodape.grid(row=4, column=0, columnspan=2, pady=(10, 20))
-        ctk.CTkLabel(rodape, text="Não registrado?") \
-            .grid(row=0, column=0)
-        ctk.CTkButton(
-            rodape, text="Registrar", width=80, command=self.show_register
-        ).grid(row=0, column=1, padx=5)
-        ctk.CTkLabel(self.login_frame, text="Esqueceu sua senha?") \
-            .grid(row=5, column=0, columnspan=2, pady=(5,10))
-
-    def _build_register_frame(self):
-        self.register_frame = ctk.CTkFrame(self, corner_radius=20)
-        self.register_frame.place(relx=0.5, rely=0.5, anchor="center")
-
-        ctk.CTkLabel(
-            self.register_frame, text="Registro de Colecionador",
-            font=ctk.CTkFont(size=18)
-        ).grid(row=0, column=0, columnspan=2, pady=(20,10))
-        ctk.CTkLabel(self.register_frame, text="Nome:") \
-            .grid(row=1, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.register_frame, width=200, textvariable=self.var_name) \
-            .grid(row=1, column=1, pady=5)
-        ctk.CTkLabel(self.register_frame, text="Email:") \
-            .grid(row=2, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.register_frame, width=200, textvariable=self.var_email) \
-            .grid(row=2, column=1, pady=5)
-        ctk.CTkLabel(self.register_frame, text="Senha:") \
-            .grid(row=3, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.register_frame, width=200, show="*", textvariable=self.var_pwd) \
-            .grid(row=3, column=1, pady=5)
-        ctk.CTkLabel(self.register_frame, text="Confirme Senha:") \
-            .grid(row=4, column=0, sticky="e", padx=10)
-        ctk.CTkEntry(self.register_frame, width=200, show="*", textvariable=self.var_pwd_confirm) \
-            .grid(row=4, column=1, pady=5)
-
-        ctk.CTkButton(
-            self.register_frame, text="Registre-se", width=250,
-            command=self._on_register
-        ).grid(row=5, column=0, columnspan=2, pady=(15, 5))
-
-        rodape = ctk.CTkFrame(self.register_frame, fg_color="transparent")
-        rodape.grid(row=6, column=0, columnspan=2, pady=(10,20))
-        ctk.CTkLabel(rodape, text="Já possui conta?") \
-            .grid(row=0, column=0)
-        ctk.CTkButton(
-            rodape, text="Login", width=80, command=self.show_login
-        ).grid(row=0, column=1, padx=5)
-
+    # Métodos UI
     def show_login(self):
         self.register_frame.place_forget()
         self.login_frame.place(relx=0.5, rely=0.5, anchor="center")
+        self.login_frame.clear_fields()
 
     def show_register(self):
         self.login_frame.place_forget()
         self.register_frame.place(relx=0.5, rely=0.5, anchor="center")
+        self.register_frame.clear_fields()
 
-    def _on_login(self):
-        ok, row = check_login(self.var_email.get().strip(), self.var_pwd.get().strip())
+    def _on_login(self, email, password):
+        ok, row = check_login(email, password)
         if not ok:
             messagebox.showerror("Login", "Credenciais incorretas.")
             return
+            
         self.record_id, self.current_name = row
-        self.current_email = self.var_email.get().strip()
+        self.current_email = email
         self.login_frame.place_forget()
-        self.register_frame.place_forget()
         self._build_main_ui()
 
-    def _on_register(self):
-        if self.var_pwd.get().strip() != self.var_pwd_confirm.get().strip():
-            messagebox.showwarning("Cadastro", "As senhas não coincidem.")
-            return
-        ok, msg = add_colecionador(
-            self.var_name.get().strip(),
-            self.var_email.get().strip(),
-            self.var_pwd.get().strip()
-        )
+    def _on_register(self, name, email, password):
+        ok, msg = add_colecionador(name, email, password)
         messagebox.showinfo("Cadastro", msg)
         if ok:
-            self.var_name.set("")
-            self.var_email.set("")
-            self.var_pwd.set("")
-            self.var_pwd_confirm.set("")
             self.show_login()
+
+    def logout(self):
+        """Realiza o logout do usuário e retorna à tela de login."""
+        self.record_id = None
+        self.current_name = ""
+        self.current_email = ""
+        self.nav_frame.grid_forget()
+        self.content_frame.grid_forget()
+        self.show_login()
 
     # —— NAVBAR & PAGES ——
     def _build_main_ui(self):
@@ -214,7 +154,7 @@ class UserApp(ctk.CTk):
         page.pack(fill="both", expand=True)
 
     def show_profile(self):
-        self._show_page(ProfilePage, self.current_name, self.current_email)
+        self._show_page(ProfilePage, self.current_name, self.current_email, self.logout)
 
     def show_search_cards(self):
         self._show_page(SearchCardsPage)
