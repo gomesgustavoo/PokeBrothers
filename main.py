@@ -12,19 +12,20 @@ from pages.register import RegisterPage
 
 DB_NAME = "colecionadores.db"
 
-
 # ———————— DATA LAYER ————————
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         CREATE TABLE IF NOT EXISTS colecionadores (
             id    TEXT PRIMARY KEY,
             nome  TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             senha TEXT NOT NULL
         )
-    """)
+        """
+    )
     conn.commit()
     conn.close()
 
@@ -72,23 +73,21 @@ class UserApp(ctk.CTk):
         self.current_email = ""
 
         init_db()
-        
-        # Criar frames de login e cadastro
+
+        # Frames de login e cadastro
         self.login_frame = LoginPage(
-            self, 
+            self,
             on_login_success=self._on_login,
             show_register_callback=self.show_register
         )
-        
         self.register_frame = RegisterPage(
             self,
             on_register_callback=self._on_register,
             show_login_callback=self.show_login
         )
-        
         self.show_login()
 
-    # Métodos UI
+    # Métodos de navegação
     def show_login(self):
         self.register_frame.place_forget()
         self.login_frame.place(relx=0.5, rely=0.5, anchor="center")
@@ -104,7 +103,6 @@ class UserApp(ctk.CTk):
         if not ok:
             messagebox.showerror("Login", "Credenciais incorretas.")
             return
-            
         self.record_id, self.current_name = row
         self.current_email = email
         self.login_frame.place_forget()
@@ -117,13 +115,43 @@ class UserApp(ctk.CTk):
             self.show_login()
 
     def logout(self):
-        """Realiza o logout do usuário e retorna à tela de login."""
         self.record_id = None
         self.current_name = ""
         self.current_email = ""
         self.nav_frame.grid_forget()
         self.content_frame.grid_forget()
         self.show_login()
+
+    # Callbacks de perfil
+    def _on_profile_update(self, new_name: str):
+        try:
+            conn = sqlite3.connect(DB_NAME)
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE colecionadores SET nome=? WHERE id=?",
+                (new_name, self.record_id)
+            )
+            conn.commit()
+            conn.close()
+            self.current_name = new_name
+            messagebox.showinfo("Perfil", "Nome atualizado com sucesso.")
+        except sqlite3.DatabaseError as e:
+            messagebox.showerror("Perfil", f"Erro ao atualizar nome: {e}")
+
+    def _on_delete_account(self):
+        resp = messagebox.askyesno(
+            "Excluir Conta",
+            "Tem certeza que deseja excluir sua conta? Esta ação é irreversível."
+        )
+        if not resp:
+            return
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM colecionadores WHERE id=?", (self.record_id,))
+        conn.commit()
+        conn.close()
+        messagebox.showinfo("Perfil", "Conta excluída com sucesso.")
+        self.logout()
 
     # —— NAVBAR & PAGES ——
     def _build_main_ui(self):
@@ -148,13 +176,22 @@ class UserApp(ctk.CTk):
         self.show_profile()
 
     def _show_page(self, page_class, *args):
-        for w in self.content_frame.winfo_children():
-            w.destroy()
+        for widget in self.content_frame.winfo_children():
+            widget.destroy()
         page = page_class(self.content_frame, *args)
         page.pack(fill="both", expand=True)
 
     def show_profile(self):
-        self._show_page(ProfilePage, self.current_name, self.current_email, self.logout)
+        # Exibe página de perfil com todos os callbacks
+        self._show_page(
+            ProfilePage,
+            self.record_id,
+            self.current_name,
+            self.current_email,
+            self._on_profile_update,
+            self._on_delete_account,
+            self.logout
+        )
 
     def show_search_cards(self):
         self._show_page(SearchCardsPage)
