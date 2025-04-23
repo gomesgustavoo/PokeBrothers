@@ -59,7 +59,7 @@ class SearchCardsPage(ctk.CTkFrame):
         ctk.CTkOptionMenu(
             self,
             variable=self.var_tipo,
-            values=["", "Grass", "Fire", "Water", "Lightning", "Psychic", "Fighting", "Colorless"]
+            values=["", "Grass","Fire","Water","Lightning","Psychic","Fighting","Darkness","Metal","Fairy","Dragon","Colorless"]
         ).grid(row=2, column=1, sticky="w", pady=5)
 
         # Filtro: Raridade
@@ -68,7 +68,33 @@ class SearchCardsPage(ctk.CTkFrame):
         ctk.CTkOptionMenu(
             self,
             variable=self.var_raridade,
-            values=["", "Common", "Uncommon", "Rare", "Promo"]
+            values=[ "",
+                "Common",
+                "Uncommon",
+                "Rare",
+                "Rare Holo",
+                "Rare Holo EX",
+                "Rare Holo GX",
+                "Rare Holo V",
+                "Rare Holo VSTAR",
+                "Rare Holo VMAX",
+                "Rare Ultra",
+                "Rare Secret",
+                "Rare ACE",
+                "Promo",
+                "LEGEND",
+                "Amazing Rare",
+                "Trainer Gallery",
+                "Shiny",
+                "Shiny Rare",
+                "Rare BREAK",
+                "Rare Prime",
+                "Rare Holo LV.X",
+                "Rare Holo Star",
+                "Rare Shining",
+                "Rare Rainbow",
+                "Rare Radiant"
+                ]
         ).grid(row=3, column=1, sticky="w", pady=5)
         # Filtro: Coleção
         self.var_colecao = ctk.StringVar(value="")
