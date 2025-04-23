@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
+import re
 
 class RegisterPage(ctk.CTkFrame):
     def __init__(self, master, on_register_callback, show_login_callback):
@@ -56,13 +57,19 @@ class RegisterPage(ctk.CTkFrame):
         ctk.CTkButton(
             rodape, text="Login", width=80, command=self.show_login
         ).grid(row=0, column=1, padx=5)
-    
     def _on_register(self):
         """Lida com a tentativa de registro"""
+
         name = self.var_name.get().strip()
         email = self.var_email.get().strip()
         password = self.var_pwd.get().strip()
         password_confirm = self.var_pwd_confirm.get().strip()
+        
+        # Validação de email usando regex
+        email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+        if not re.match(email_regex, email):
+            messagebox.showwarning("Cadastro", "Por favor, insira um email válido.")
+            return
         
         if password != password_confirm:
             messagebox.showwarning("Cadastro", "As senhas não coincidem.")
