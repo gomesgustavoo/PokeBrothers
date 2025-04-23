@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
+import re
 
 class LoginPage(ctk.CTkFrame):
     def __init__(self, master, on_login_success, show_register_callback):
@@ -51,11 +52,23 @@ class LoginPage(ctk.CTkFrame):
         """Lida com a tentativa de login"""
         email = self.var_email.get().strip()
         password = self.var_pwd.get().strip()
-        
+
+        # Validação de campos vazios
         if not email or not password:
-            messagebox.showerror("Login", "Por favor, preencha todos os campos")
+            messagebox.showerror("Login", "Por favor, preencha todos os campos.")
             return
-        
+
+        # Validação de formato de e-mail
+        email_regex = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+        if not re.match(email_regex, email):
+            messagebox.showerror("Login", "Por favor, insira um e-mail válido.")
+            return
+
+        # Validação de tamanho da senha
+        if len(password) < 6:
+            messagebox.showerror("Login", "A senha deve ter pelo menos 6 caracteres.")
+            return
+
         # Chama a função de callback passada pelo main
         self.on_login_success(email, password)
     
