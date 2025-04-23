@@ -70,7 +70,12 @@ class RegisterPage(ctk.CTkFrame):
         if not re.match(email_regex, email):
             messagebox.showwarning("Cadastro", "Por favor, insira um email válido.")
             return
-        
+
+        # Validação de tamanho da senha
+        if len(password) < 6:
+            messagebox.showwarning("Cadastro", "A senha deve ter pelo menos 6 caracteres.")
+            return
+
         if password != password_confirm:
             messagebox.showwarning("Cadastro", "As senhas não coincidem.")
             return
