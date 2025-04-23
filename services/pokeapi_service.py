@@ -1,6 +1,6 @@
 import requests
 from uuid import uuid4
- 
+import math
 # substitua pela sua chave
 API_KEY = "b85a009f-df35-4234-aa2d-0f4b6799a776"
 BASE_URL = "https://api.pokemontcg.io/v2"
@@ -8,43 +8,61 @@ HEADERS = {"X-Api-Key": API_KEY}
 # ajuste conforme a cotação real
 DOLLAR_TO_REAL = 5.0
 
-def fetch_card_data(name: str) -> dict | None:
-    """
-    Busca a primeira carta cujo nome contenha 'name' na TCG API.
-    Retorna um dict pronto para passar em add_carta() ou None se não achar.
-    """
+def fetch_card_data(name: str, page: int = 1, tipo: str = "", raridade: str = "", colecao: str = "") -> tuple[list[dict], int]:
+    query_parts = [f'name:*{name.title()}*']
+    if tipo:
+        query_parts.append(f'types:{tipo}')
+    if raridade:
+        query_parts.append(f'rarity:{raridade}')
+    if colecao:
+        query_parts.append(f'set.name:"{colecao}"')
+
+    query = " AND ".join(query_parts)
     params = {
-        "q": f'name:"{name.title()}"',  # busca exata pelo nome
-        "pageSize": 1
+        "q": query,
+        "pageSize": 20,
+        "page": page
     }
     resp = requests.get(f"{BASE_URL}/cards", headers=HEADERS, params=params)
     if resp.status_code != 200:
-        return None
+        return [], 1
 
-    items = resp.json().get("data", [])
-    if not items:
-        return None
+    data = resp.json()
+    
+    items = data.get("data", [])
+    total_count = data.get("totalCount", len(items))
+    total_pages = math.ceil(total_count / 20)
 
-    print("ITEMS", items)
-    c = items[0]
-    # tipos unidos por vírgula
-    tipos = ", ".join(c.get("types", []))
-    # extraindo preços (tcgplayer)
-    prices = c.get("tcgplayer", {}).get("prices", {})
-    # tenta holofoil primeiro, depois normal
-    price_info = prices.get("holofoil") or prices.get("normal") or {}
-    usd = price_info.get("market") or price_info.get("mid") or 0.0
-    brl = usd * DOLLAR_TO_REAL
+    cards = []
+    for c in items:
+        tipos = ", ".join(c.get("types", []))
+        prices = c.get("tcgplayer", {}).get("prices", {})
+        price_info = prices.get("holofoil") or prices.get("normal") or {}
+        usd = price_info.get("market") or price_info.get("mid") or 0.0
+        brl = usd * DOLLAR_TO_REAL
 
-    return {
-        "id": c["id"],
-        "nome": c["name"],
-        "tipo": tipos,
-        "raridade": c.get("rarity", ""),
-        "colecao": c.get("set", {}).get("name", ""),
-        "preco_dolar": usd,
-        "preco_real": brl
-    }
+        cards.append({
+            "id": c["id"],
+            "nome": c["name"],
+            "tipo": tipos,
+            "raridade": c.get("rarity", ""),
+            "colecao": c.get("set", {}).get("name", ""),
+            "preco_dolar": usd,
+            "preco_real": brl,
+            "imagem_url": c.get("images", {}).get("small", "")
+        })
+    
+    return cards, total_pages
+
+def fetch_all_collections() -> list[str]:
+    resp = requests.get(f"{BASE_URL}/sets", headers=HEADERS)
+    if resp.status_code != 200:
+        return []
+
+    data = resp.json()
+    return [item["name"] for item in data.get("data", [])]
+
+
 
 def import_card_to_db(name: str) -> bool:
     """
