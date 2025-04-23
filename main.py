@@ -116,6 +116,15 @@ class UserApp(ctk.CTk):
         if ok:
             self.show_login()
 
+    def logout(self):
+        """Realiza o logout do usuário e retorna à tela de login."""
+        self.record_id = None
+        self.current_name = ""
+        self.current_email = ""
+        self.nav_frame.grid_forget()
+        self.content_frame.grid_forget()
+        self.show_login()
+
     # —— NAVBAR & PAGES ——
     def _build_main_ui(self):
         self.columnconfigure(0, weight=0)
@@ -145,7 +154,7 @@ class UserApp(ctk.CTk):
         page.pack(fill="both", expand=True)
 
     def show_profile(self):
-        self._show_page(ProfilePage, self.current_name, self.current_email)
+        self._show_page(ProfilePage, self.current_name, self.current_email, self.logout)
 
     def show_search_cards(self):
         self._show_page(SearchCardsPage)
