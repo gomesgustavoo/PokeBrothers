@@ -1,6 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
-from services.pokeapi_service import fetch_card_data, fetch_all_collections
+from services.pokeapi_service import fetch_card_data, fetch_all_collections, fetch_all_rarities, fetch_all_types
 from PIL import Image
 import requests
 from io import BytesIO
@@ -53,13 +53,17 @@ class SearchCardsPage(ctk.CTkFrame):
             command=self.on_search
         ).grid(row=1, column=2, padx=5)
 
+        colecoes = fetch_all_collections()
+        tipos = fetch_all_types()
+        raridades = fetch_all_rarities()
+
         # Filtro: Tipo
         self.var_tipo = ctk.StringVar(value="")
         ctk.CTkLabel(self, text="Tipo:").grid(row=2, column=0, sticky="e", padx=10)
         ctk.CTkOptionMenu(
             self,
             variable=self.var_tipo,
-            values=["", "Grass","Fire","Water","Lightning","Psychic","Fighting","Darkness","Metal","Fairy","Dragon","Colorless"]
+            values=[""] + tipos
         ).grid(row=2, column=1, sticky="w", pady=5)
 
         # Filtro: Raridade
@@ -68,40 +72,16 @@ class SearchCardsPage(ctk.CTkFrame):
         ctk.CTkOptionMenu(
             self,
             variable=self.var_raridade,
-            values=[ "",
-                "Common",
-                "Uncommon",
-                "Rare",
-                "Rare Holo",
-                "Rare Holo EX",
-                "Rare Holo GX",
-                "Rare Holo V",
-                "Rare Holo VSTAR",
-                "Rare Holo VMAX",
-                "Rare Ultra",
-                "Rare Secret",
-                "Rare ACE",
-                "Promo",
-                "LEGEND",
-                "Amazing Rare",
-                "Trainer Gallery",
-                "Shiny",
-                "Shiny Rare",
-                "Rare BREAK",
-                "Rare Prime",
-                "Rare Holo LV.X",
-                "Rare Holo Star",
-                "Rare Shining",
-                "Rare Rainbow",
-                "Rare Radiant"
-                ]
+            values=[""] + raridades
         ).grid(row=3, column=1, sticky="w", pady=5)
         # Filtro: Coleção
         self.var_colecao = ctk.StringVar(value="")
-
         ctk.CTkLabel(self, text="Coleção:").grid(row=4, column=0, sticky="e", padx=10)
-        self.colecao_menu = ctk.CTkOptionMenu(self, variable=self.var_colecao, values=[""])
-        self.colecao_menu.grid(row=4, column=1, sticky="w", pady=5)
+        ctk.CTkOptionMenu(
+            self,
+            variable=self.var_colecao,
+            values=[""] + colecoes
+        ).grid(row=4, column=1, sticky="w", pady=5)
 
 
         # Frame de resultados (com scroll)
@@ -111,10 +91,7 @@ class SearchCardsPage(ctk.CTkFrame):
         # Permitir expansão da área de resultados
         self.rowconfigure(5, weight=1)
         self.columnconfigure(1, weight=1)
-
-        colecoes = fetch_all_collections()
-        self.colecao_menu.configure(values=[""] + colecoes)
-
+        
 
     def on_search(self):
         self.current_search_term = self.var_search.get().strip()

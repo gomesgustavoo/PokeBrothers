@@ -13,7 +13,7 @@ def fetch_card_data(name: str, page: int = 1, tipo: str = "", raridade: str = ""
     if tipo:
         query_parts.append(f'types:{tipo}')
     if raridade:
-        query_parts.append(f'rarity:{raridade}')
+        query_parts.append(f'rarity:"{raridade}"')
     if colecao:
         query_parts.append(f'set.name:"{colecao}"')
 
@@ -62,6 +62,17 @@ def fetch_all_collections() -> list[str]:
     data = resp.json()
     return [item["name"] for item in data.get("data", [])]
 
+def fetch_all_types() -> list[str]:
+    resp = requests.get(f"{BASE_URL}/types", headers=HEADERS)
+    if resp.status_code != 200:
+        return []
+    return resp.json().get("data", [])
+
+def fetch_all_rarities() -> list[str]:
+    resp = requests.get(f"{BASE_URL}/rarities", headers=HEADERS)
+    if resp.status_code != 200:
+        return []
+    return resp.json().get("data", [])
 
 
 def import_card_to_db(name: str) -> bool:
