@@ -1,6 +1,8 @@
 import requests
 from uuid import uuid4
 import math
+
+from models.Carta import Carta
 # substitua pela sua chave
 API_KEY = "b85a009f-df35-4234-aa2d-0f4b6799a776"
 BASE_URL = "https://api.pokemontcg.io/v2"
@@ -41,16 +43,8 @@ def fetch_card_data(name: str, page: int = 1, tipo: str = "", raridade: str = ""
         usd = price_info.get("market") or price_info.get("mid") or 0.0
         brl = usd * DOLLAR_TO_REAL
 
-        cards.append({
-            "id": c["id"],
-            "nome": c["name"],
-            "tipo": tipos,
-            "raridade": c.get("rarity", ""),
-            "colecao": c.get("set", {}).get("name", ""),
-            "preco_dolar": usd,
-            "preco_real": brl,
-            "imagem_url": c.get("images", {}).get("small", "")
-        })
+        cards = [Carta.from_api_data(c, DOLLAR_TO_REAL) for c in items]
+
     
     return cards, total_pages
 
@@ -60,19 +54,22 @@ def fetch_all_collections() -> list[str]:
         return []
 
     data = resp.json()
-    return [item["name"] for item in data.get("data", [])]
+    return sorted([item["name"] for item in data.get("data", [])])
 
 def fetch_all_types() -> list[str]:
     resp = requests.get(f"{BASE_URL}/types", headers=HEADERS)
     if resp.status_code != 200:
         return []
-    return resp.json().get("data", [])
+    data = resp.json()
+    return sorted(item for item in data.get("data", []) )
 
 def fetch_all_rarities() -> list[str]:
     resp = requests.get(f"{BASE_URL}/rarities", headers=HEADERS)
     if resp.status_code != 200:
         return []
-    return resp.json().get("data", [])
+    
+    data = resp.json()
+    return sorted(item for item in data.get("data", []) )
 
 
 def import_card_to_db(name: str) -> bool:

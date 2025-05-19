@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from tkinter import messagebox
+from models.Carta import Carta
 from services.pokeapi_service import fetch_card_data, fetch_all_collections, fetch_all_rarities, fetch_all_types
 from PIL import Image
 import requests
@@ -104,7 +105,7 @@ class SearchCardsPage(ctk.CTkFrame):
 
 
     def load_page(self, page, tipo="", raridade="", colecao=""):
-        cards, self.total_pages = fetch_card_data(self.current_search_term, page, tipo, raridade, colecao)
+        cards, self.total_pages = fetch_card_data(self.current_search_term, page, tipo, raridade, colecao)        
         for widget in self.results_frame.winfo_children():
             widget.destroy()
 
@@ -163,13 +164,13 @@ class SearchCardsPage(ctk.CTkFrame):
             return None
 
     @staticmethod
-    def create_card_widget(parent, card, row, column):
+    def create_card_widget(parent, card:Carta, row, column):
         # Card Frame geral
         card_frame = ctk.CTkFrame(parent, corner_radius=12, fg_color="#1a1a1a")
         card_frame.grid(row=row, column=column, padx=10, pady=10, sticky="n")
 
         # Imagem da carta
-        img = SearchCardsPage.load_image_from_url(card['imagem_url'], size=(120, 168))
+        img = SearchCardsPage.load_image_from_url(card.imagem_url, size=(120, 168))
         if img:
             img_label = ctk.CTkLabel(card_frame, image=img, text="")
             img_label.image = img
@@ -183,30 +184,30 @@ class SearchCardsPage(ctk.CTkFrame):
 
         ctk.CTkLabel(
             info_frame,
-            text=card["nome"],
+            text=card.nome,
             font=ctk.CTkFont(size=14, weight="bold"),
             anchor="w"
         ).pack(anchor="w")
         ctk.CTkLabel(
             info_frame,
-            text=f'Preço de mercado: US${card["preco_dolar"]:.2f}',
+            text=f'Preço de mercado: US${card.preco_dolar:.2f}',
             font=ctk.CTkFont(size=12),
             anchor="w"
         ).pack(anchor="w")
         ctk.CTkLabel(
             info_frame,
-            text=f'Coleção: {card["colecao"]}',
+            text=f'Coleção: {card.colecao}',
             font=ctk.CTkFont(size=12),
             anchor="w"
         ).pack(anchor="w")
         ctk.CTkLabel(
             info_frame,
-            text=f'Raridade: {card["raridade"] or "Desconhecida"}',
+            text=f'Raridade: {card.raridade or "Desconhecida"}',
             font=ctk.CTkFont(size=12),
             anchor="w"
         ).pack(anchor="w")
         # Tag de tipo com cor
-        tipo = card["tipo"].split(",")[0] if card["tipo"] else "Desconhecido"
+        tipo = card.tipo.split(",")[0] if card.tipo else "Desconhecido"
         cor = TIPO_CORES.get(tipo, "#666666")  # cor padrão se não mapeado
 
         ctk.CTkLabel(
