@@ -24,8 +24,9 @@ class SearchCardsPage(ctk.CTkFrame):
     """
     Página responsável por buscar cartas na Pokémon TCG API e exibir seus dados em grade.
     """
-    def __init__(self, master):
+    def __init__(self, master, on_card_select=None):
         super().__init__(master, corner_radius=12)
+        self.on_card_select = on_card_select  # função(carta: dict) -> None
         self.current_page = 1
         self.total_pages = 1
         self.current_search_term = ""
@@ -125,7 +126,7 @@ class SearchCardsPage(ctk.CTkFrame):
         for index, card in enumerate(cards):
             row = index // columns
             col = index % columns
-            self.create_card_widget(grid_frame, card, row, col)
+            self.create_card_widget(self, grid_frame, card, row, col)
 
         # Navegação
         nav_frame = ctk.CTkFrame(self.results_frame, fg_color="transparent")
@@ -164,7 +165,7 @@ class SearchCardsPage(ctk.CTkFrame):
             return None
 
     @staticmethod
-    def create_card_widget(parent, card:Carta, row, column):
+    def create_card_widget(self, parent, card:Carta, row, column):
         # Card Frame geral
         card_frame = ctk.CTkFrame(parent, corner_radius=12, fg_color="#1a1a1a")
         card_frame.grid(row=row, column=column, padx=10, pady=10, sticky="n")
@@ -177,6 +178,15 @@ class SearchCardsPage(ctk.CTkFrame):
             img_label.pack(side="left", padx=10, pady=10)
         else:
             ctk.CTkLabel(card_frame, text="[imagem]").pack(side="left", padx=10, pady=10)
+
+        if self.on_card_select:
+            def _on_click(evt=None, c=card):
+                # devolve o dict da carta
+                self.on_card_select(c)
+            # binder no frame e em todos os filhos (imagem + labels)
+            card_frame.bind("<Button-1>", _on_click)
+            for filho in card_frame.winfo_children():
+                filho.bind("<Button-1>", _on_click)
 
         # Bloco de informações ao lado da imagem
         info_frame = ctk.CTkFrame(card_frame, fg_color="transparent")

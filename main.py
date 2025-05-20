@@ -9,6 +9,7 @@ from pages.profile import ProfilePage
 from pages.search_cards import SearchCardsPage
 from pages.login import LoginPage
 from pages.register import RegisterPage
+from pages.simulacao import SimulacaoTrocaPage
 
 DB_NAME = "colecionadores.db"
 
@@ -164,7 +165,7 @@ class UserApp(ctk.CTk):
             ("Pesquisar cartas", self.show_search_cards),
             ("Inventário", lambda: None),
             ("Lista de Desejos", lambda: None),
-            ("Simular Troca", lambda: None),
+            ("Simular Troca", self.show_simulacao),
             ("Histórico de Troca", lambda: None)
         ]
         self.nav_frame = NavBar(self, commands)
@@ -195,6 +196,9 @@ class UserApp(ctk.CTk):
 
     def show_search_cards(self):
         self._show_page(SearchCardsPage)
+
+    def show_simulacao(self):
+        self._show_page(SimulacaoTrocaPage)
 
 
 if __name__ == "__main__":
