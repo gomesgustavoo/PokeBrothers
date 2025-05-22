@@ -58,7 +58,7 @@ class SimulacaoTroca:
         """
         total_r = self.total_recebidos()
         if total_r == 0:
-            return 0.0
+            raise ZeroDivisionError
         total_o = self.total_ofertados()
         return (total_o - total_r) / total_r * 100
 

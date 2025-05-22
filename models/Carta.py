@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+from services.dollarapi_service import ExchangeService
+
 
 class Carta:
     """
@@ -27,7 +29,7 @@ class Carta:
         self.imagem_url = imagem_url
 
     @classmethod
-    def from_api_data(cls, c: dict, dollar_to_real: float) -> "Carta":
+    def from_api_data(cls, c: dict, dollar_to_real) -> "Carta":
         """
         Cria uma instância de Carta a partir do JSON retornado pela API.
         """
