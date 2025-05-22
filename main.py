@@ -9,6 +9,7 @@ from pages.profile import ProfilePage
 from pages.search_cards import SearchCardsPage
 from pages.login import LoginPage
 from pages.register import RegisterPage
+from pages.Inventario import InventarioPage
 from pages.simulacao import SimulacaoTrocaPage
 
 DB_NAME = "colecionadores.db"
@@ -193,6 +194,9 @@ class UserApp(ctk.CTk):
             self._on_delete_account,
             self.logout
         )
+
+    def show_inventario(self):
+        self._show_page(InventarioPage)
 
     def show_search_cards(self):
         self._show_page(SearchCardsPage)
