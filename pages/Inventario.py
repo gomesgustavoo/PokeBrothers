@@ -15,10 +15,11 @@ class InventarioPage(ctk.CTkFrame):
     Página de Inventário do Colecionador: permite adicionar e remover cartas do inventário.
     """
     SLOTS_POR_LINHA = 5
-
+    _MAX_CARTAS = 500
     def __init__(self, master, colecionador):
         super().__init__(master, corner_radius=12)
         self.colecionador = colecionador
+        self._inventarioLotado = False
         self._carregar_inventario()
         self._build()
 
@@ -46,26 +47,84 @@ class InventarioPage(ctk.CTkFrame):
         self._renderizar_cartas()
 
     def _abrir_modal_adicionar(self):
+        # Verifica se o inventário está lotado ANTES de abrir a busca
+        total_cartas = sum(item.get_quantidade() for item in self.colecionador.get_inventario())
+        if total_cartas >= self._MAX_CARTAS:
+            self._inventarioLotado = True
+            messagebox.showwarning("Inventário Lotado", "Número Máximo de cartas atingido")
+            return
+        self._inventarioLotado = False
         topo = ctk.CTkToplevel(self)
         topo.title("Adicionar Carta ao Inventário")
         topo.geometry("800x600")
         SearchCardsPage(
             master=topo,
-            on_card_select=lambda carta: self._adicionar_carta(carta, topo)
+            on_card_select=lambda carta: self._abrir_modal_quantidade(carta, topo)
         ).pack(fill="both", expand=True)
 
-    def _adicionar_carta(self, carta: Carta, topo):
-        topo.destroy()
+    def _abrir_modal_quantidade(self, carta: Carta, topo_search):
+        topo_search.destroy()
+        # Calcula o máximo que pode adicionar sem ultrapassar o limite
+        total_cartas = sum(item.get_quantidade() for item in self.colecionador.get_inventario())
+        max_adicionar = self._MAX_CARTAS - total_cartas
+        modal = ctk.CTkToplevel(self)
+        modal.title("Quantidade de Cartas")
+        modal.geometry("300x180")
+        ctk.CTkLabel(modal, text=f"Adicionar '{carta.nome}' ao inventário", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=(15, 10))
+        frame = ctk.CTkFrame(modal)
+        frame.pack(pady=10)
+        quantidade = ctk.IntVar(value=1)
+        # Funções de incremento/decremento
+        def aumentar():
+            if quantidade.get() < max_adicionar:
+                quantidade.set(quantidade.get() + 1)
+        def diminuir():
+            if quantidade.get() > 1:
+                quantidade.set(quantidade.get() - 1)
+        # Funções para auto-repetição ao segurar
+        def start_auto_repeat(func):
+            def repeat():
+                func()
+                nonlocal after_id
+                after_id = modal.after(60, repeat)
+            after_id = None
+            def on_press(event=None):
+                repeat()
+            def on_release(event=None):
+                if after_id:
+                    modal.after_cancel(after_id)
+            return on_press, on_release
+        # Botão menos
+        btn_menos = ctk.CTkButton(frame, text="-", width=32, command=diminuir)
+        btn_menos.grid(row=0, column=0, padx=5)
+        menos_press, menos_release = start_auto_repeat(diminuir)
+        btn_menos.bind('<ButtonPress-1>', menos_press)
+        btn_menos.bind('<ButtonRelease-1>', menos_release)
+        # Botão mais
+        btn_mais = ctk.CTkButton(frame, text="+", width=32, command=aumentar)
+        btn_mais.grid(row=0, column=2, padx=5)
+        mais_press, mais_release = start_auto_repeat(aumentar)
+        btn_mais.bind('<ButtonPress-1>', mais_press)
+        btn_mais.bind('<ButtonRelease-1>', mais_release)
+        # Label quantidade
+        lbl_qtd = ctk.CTkLabel(frame, textvariable=quantidade, width=40)
+        lbl_qtd.grid(row=0, column=1, padx=5)
+        def confirmar():
+            self._adicionar_carta_confirmada(carta, quantidade.get())
+            modal.destroy()
+        ctk.CTkButton(modal, text="Adicionar", command=confirmar).pack(pady=(50, 0))
+
+    def _adicionar_carta_confirmada(self, carta: Carta, qtd: int):
         # Verifica se já existe a carta no inventário
         for item in self.colecionador.get_inventario():
             if item.get_carta().id == carta.id:
-                item.set_quantidade(item.get_quantidade() + 1)
+                item.set_quantidade(item.get_quantidade() + qtd)
                 self._atualizar_quantidade_db(item.get_id(), item.get_quantidade())
                 break
         else:
-            novo_item = ItemInventario(carta, quantidade=1)
-            self.colecionador.get_inventario().append(novo_item)
+            novo_item = ItemInventario(carta, quantidade=qtd)
             self._adicionar_item_db(novo_item)
+            self.colecionador.adicionar_item_inventario(novo_item)
         self._renderizar_cartas()
 
     def _adicionar_item_db(self, item: ItemInventario):

@@ -82,6 +82,21 @@ def init_inventario_db():
     conn.commit()
     conn.close()
 
+def carregar_inventario_do_banco(colecionador_id):
+    from models.ItemInventario import ItemInventario
+    from services.pokeapi_service import buscar_carta_por_id
+    inventario = []
+    conn = sqlite3.connect("inventario.db")
+    cur = conn.cursor()
+    cur.execute("SELECT id, carta_id, quantidade FROM inventario WHERE colecionador_id=?", (colecionador_id,))
+    rows = cur.fetchall()
+    conn.close()
+    for row in rows:
+        carta = buscar_carta_por_id(row[1])
+        if carta:
+            inventario.append(ItemInventario(carta, quantidade=row[2], id=row[0]))
+    return inventario
+
 # ———————— APPLICATION ————————
 class UserApp(ctk.CTk):
     def __init__(self):
@@ -135,6 +150,15 @@ class UserApp(ctk.CTk):
             return
         self.record_id, self.current_name = row
         self.current_email = email
+        # Carregar inventário do banco de dados ao logar
+        inventario = carregar_inventario_do_banco(self.record_id)
+        self.colecionador = Colecionador(
+            nome=self.current_name,
+            email=self.current_email,
+            senha="",  # Senha não é usada aqui
+            id=self.record_id,
+            inventario=inventario
+        )
         self.login_frame.place_forget()
         self._build_main_ui()
 
