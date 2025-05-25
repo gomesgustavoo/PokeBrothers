@@ -2,8 +2,10 @@ import uuid
 import sqlite3
 import customtkinter as ctk
 from tkinter import messagebox
+import requests
 
-from services.pokeapi_service import import_card_to_db
+from services.pokeapi_service import import_card_to_db, buscar_carta_por_id
+from services.dollarapi_service import ExchangeService
 from pages.navbar import NavBar
 from pages.profile import ProfilePage
 from pages.search_cards import SearchCardsPage
@@ -11,6 +13,7 @@ from pages.login import LoginPage
 from pages.register import RegisterPage
 from pages.Inventario import InventarioPage
 from pages.simulacao import SimulacaoTrocaPage
+from models.Colecionador import Colecionador
 
 DB_NAME = "colecionadores.db"
 
@@ -61,6 +64,23 @@ def check_login(email, senha):
     return (True, row) if row else (False, None)
 
 
+def init_inventario_db():
+    conn = sqlite3.connect("inventario.db")
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS inventario (
+            id TEXT PRIMARY KEY,
+            colecionador_id TEXT NOT NULL,
+            carta_id TEXT NOT NULL,
+            quantidade INTEGER NOT NULL,
+            FOREIGN KEY (colecionador_id) REFERENCES colecionadores(id)
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
+
 # ———————— APPLICATION ————————
 class UserApp(ctk.CTk):
     def __init__(self):
@@ -73,6 +93,13 @@ class UserApp(ctk.CTk):
         self.record_id = None
         self.current_name = ""
         self.current_email = ""
+        self.colecionador = Colecionador(
+            nome=self.current_name,
+            email=self.current_email,
+            senha="",  # Senha será definida no login/cadastro
+            id=self.record_id,
+            inventario=[]  # Deixe vazio, será carregado na página
+        )
 
         init_db()
 
@@ -164,7 +191,7 @@ class UserApp(ctk.CTk):
         commands = [
             ("Perfil", self.show_profile),
             ("Pesquisar cartas", self.show_search_cards),
-            ("Inventário", lambda: None),
+            ("Inventário", self.show_inventario),
             ("Lista de Desejos", lambda: None),
             ("Simular Troca", self.show_simulacao),
             ("Histórico de Troca", lambda: None)
@@ -196,7 +223,7 @@ class UserApp(ctk.CTk):
         )
 
     def show_inventario(self):
-        self._show_page(InventarioPage)
+        self._show_page(InventarioPage, self.colecionador)
 
     def show_search_cards(self):
         self._show_page(SearchCardsPage)
@@ -207,5 +234,6 @@ class UserApp(ctk.CTk):
 
 if __name__ == "__main__":
     init_db()
+    init_inventario_db()
     app = UserApp()
     app.mainloop()
