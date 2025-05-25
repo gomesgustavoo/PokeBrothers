@@ -23,66 +23,89 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         self.simulacao = SimulacaoTroca(limite_percentual=10.0)
         self.ofertados_frames = []
         self.recebidos_frames = []
-        self.var_total_ofertados = ctk.StringVar(value="Valor total: R$0,00")
-        self.var_total_recebidos = ctk.StringVar(value="Valor total: R$0,00")
-        self.var_diff_ofertados = ctk.StringVar(value="0%")
-        self.var_diff_recebidos = ctk.StringVar(value="0%")
-        self.badge_of = None
-        self.badge_rc = None
-        self.var_status_troca = ctk.StringVar(value="Indefinido (adicione pelo menos uma carta em cada lado da simulação)")
+        # atributos simples
+        self.total_ofertados: float = 0.0
+        self.total_recebidos: float = 0.0
+        self.status_text: str = "Indefinido (adicione pelo menos uma carta em cada lado da simulação)"
         self._build()
 
     def _build(self):
         # Título da página
-        ctk.CTkLabel(self, text="Simular Troca", font=ctk.CTkFont(size=20, weight="bold")) \
-            .grid(row=0, column=0, columnspan=2, pady=(10, 20))
+        ctk.CTkLabel(
+            self, text="Simular Troca", font=ctk.CTkFont(size=20, weight="bold")
+        ).grid(row=0, column=0, columnspan=2, pady=(10, 20))
 
         # Layout de colunas
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
 
         # Painel de cartas ofertadas
-        painel_ofertados = ctk.CTkFrame(self, corner_radius=10, fg_color="#2b2b2b")
+        painel_ofertados = ctk.CTkFrame(
+            self, corner_radius=10, fg_color="#2b2b2b"
+        )
         painel_ofertados.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
-        self._montar_painel(painel_ofertados, "Cartas Oferecidas", self.ofertados_frames, self._adicionar_ofertado, total_var=self.var_total_ofertados,diff_var=self.var_diff_ofertados)
+        self._montar_painel(
+            painel=painel_ofertados,
+            titulo="Cartas Oferecidas",
+            lista_frames=self.ofertados_frames,
+            cmd_add=self._adicionar_ofertado,
+            ofertado=True,
+        )
+
         # Painel de cartas recebidas
-        painel_recebidos = ctk.CTkFrame(self, corner_radius=10, fg_color="#2b2b2b")
+        painel_recebidos = ctk.CTkFrame(
+            self, corner_radius=10, fg_color="#2b2b2b"
+        )
         painel_recebidos.grid(row=1, column=1, padx=10, pady=10, sticky="nsew")
-        self._montar_painel(painel_recebidos, "Cartas Recebidas", self.recebidos_frames, self._adicionar_recebido, total_var=self.var_total_recebidos, diff_var=self.var_diff_recebidos)
+        self._montar_painel(
+            painel=painel_recebidos,
+            titulo="Cartas Recebidas",
+            lista_frames=self.recebidos_frames,
+            cmd_add=self._adicionar_recebido,
+            ofertado=False,
+        )
 
         self.lbl_status = ctk.CTkLabel(
             self,
-            textvariable=self.var_status_troca,
+            text=self.status_text,
             font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#4E73D8"
+            text_color="#4E73D8",
         )
-        self.lbl_status.grid(row=2, column=0, columnspan=2, pady=(0,5))
+        self.lbl_status.grid(row=2, column=0, columnspan=2, pady=(0, 5))
 
-        # Botão de registrar simulação
         botao_salvar = ctk.CTkButton(
-            self,
-            text="Registrar Simulação",
-            command=self._registrar_simulacao
+            self, text="Registrar Simulação", command=self._registrar_simulacao
         )
         botao_salvar.grid(row=3, column=0, columnspan=2, pady=(10, 20))
 
-    def _montar_painel(self, painel, titulo, lista_frames, cmd_add, total_var, diff_var):
-        # Cabeçalho e total
+    def _montar_painel(self, painel, titulo, lista_frames, cmd_add, ofertado: bool):
         ctk.CTkLabel(
             painel,
             text=titulo,
-            font=ctk.CTkFont(size=16, weight="bold")
-        ).grid(row=0, column=0, columnspan=self.COLUNAS, pady=(10,5))
-        ctk.CTkLabel(
-            painel,
-            textvariable=total_var,
-            anchor="e"
-        ).grid(row=1, column=0, columnspan=self.COLUNAS, sticky="e", padx=10)
-        # Slots de cartas
-        # Grid de slots com 2 linhas e COLUNAS colunas
-        frame_grid = ctk.CTkFrame(painel, corner_radius=6, fg_color="#1a1a1a")
-        frame_grid.grid(row=2, column=0, columnspan=self.COLUNAS, padx=10, pady=(5,10), sticky="nsew")
+            font=ctk.CTkFont(size=16, weight="bold"),
+        ).grid(row=0, column=0, columnspan=self.COLUNAS, pady=(10, 5))
 
+        # Label de total
+        lbl_total = ctk.CTkLabel(
+            painel,
+            text=(
+                f"Valor total: R${self.total_ofertados:,.2f}"
+                if ofertado
+                else f"Valor total: R${self.total_recebidos:,.2f}"
+            ),
+            anchor="e",
+        )
+        lbl_total.grid(
+            row=1, column=0, columnspan=self.COLUNAS, sticky="e", padx=10
+        )
+
+        # Slots de cartas
+        frame_grid = ctk.CTkFrame(
+            painel, corner_radius=6, fg_color="#1a1a1a"
+        )
+        frame_grid.grid(
+            row=2, column=0, columnspan=self.COLUNAS, padx=10, pady=(5, 10), sticky="nsew"
+        )
         for idx in range(self.SLOTS_POR_PAINEL):
             linha = idx // self.COLUNAS
             coluna = idx % self.COLUNAS
@@ -91,36 +114,36 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
                 width=130,
                 height=200,
                 fg_color="#333333",
-                corner_radius=6
+                corner_radius=6,
             )
             slot.grid(row=linha, column=coluna, padx=5, pady=5)
-
             btn = ctk.CTkButton(
-                slot,
-                text="+ Add",
-                command=lambda i=idx: cmd_add(i)
+                slot, text="+ Add", command=lambda i=idx: cmd_add(i)
             )
             btn.place(relx=0.5, rely=0.5, anchor="center")
-
-            lista_frames.append((slot, total_var))
+            lista_frames.append((slot, ofertado))
 
         # Badge de diferença
-        badge = ctk.CTkLabel(
+        lbl_diff = ctk.CTkLabel(
             painel,
-            textvariable=diff_var,
+            text=f"{self.simulacao.equilibrio:.0f}%",
             fg_color="#4E73D8",
             text_color="black",
             corner_radius=10,
             padx=8,
             pady=4,
-            font=ctk.CTkFont(size=20, weight="bold")
+            font=ctk.CTkFont(size=20, weight="bold"),
         )
-        badge.grid(row=3, column=0, columnspan=self.COLUNAS, pady=(0,10))
-        # Armazenar referência para atualizar cor depois
-        if "Oferecidas" in titulo:
-            self.badge_of = badge
+        lbl_diff.grid(row=3, column=0, columnspan=self.COLUNAS, pady=(0, 10))
+
+        if ofertado:
+            self.lbl_total_ofertados = lbl_total
+            self.lbl_diff_ofertados = lbl_diff
+            self.badge_of = lbl_diff
         else:
-            self.badge_rc = badge
+            self.lbl_total_recebidos = lbl_total
+            self.lbl_diff_recebidos = lbl_diff
+            self.badge_rc = lbl_diff
 
     def _adicionar_ofertado(self, indice: int):
         self._escolher_fonte_carta(ofertado=True, indice=indice)
@@ -151,7 +174,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             text="Pesquisar Cartas",
             command=lambda:
                 (topo.destroy(),
-                    self._open_search_modal(ofertado, indice))
+                    self._abrir_buscar_cartas(ofertado, indice))
         ).pack(fill="x", padx=20, pady=(20, 5))
 
         # Botão listar do inventário ou wishlist
@@ -161,7 +184,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             command=lambda: (topo.destroy(), cmd_lista())
         ).pack(fill="x", padx=20, pady=(0, 20))
 
-    def _open_search_modal(self, ofertado: bool, indice: int):
+    def _abrir_buscar_cartas(self, ofertado: bool, indice: int):
         """
         Abre diretamente o SearchCardsPage em um novo modal.
         """
@@ -191,30 +214,52 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         return
 
     def _atualizar_totais(self):
-        # atualiza totais
-        try:
-            self.var_total_ofertados.set(f"Valor total: R${self.simulacao.total_ofertados():,.2f}")
-            self.var_total_recebidos.set(f"Valor total: R${self.simulacao.total_recebidos():,.2f}")
-            # atualiza diffs
-            diff = self.simulacao.diferenca_percentual()
-            print("DIFERENCA", diff)
-            self.var_diff_ofertados.set(f"{diff:.0f}%")
-            self.var_diff_recebidos.set(f"{(-diff):.0f}%")
-            # aplica cor de alerta se desequilibrado
+        # Atualiza valores numéricos
+        self.total_ofertados = self.simulacao.total_ofertados()
+        self.total_recebidos = self.simulacao.total_recebidos()
 
-            if abs(diff) > self.simulacao.limite_percentual:
-                self.badge_of.configure(fg_color="#FF6B6B")
-                self.badge_rc.configure(fg_color="#FF6B6B")
-                self.var_status_troca.set("Desequilibrada ＞﹏＜")
-                self.lbl_status.configure(text_color="#FF6B6B")
-            else:
-                self.badge_of.configure(fg_color="#5EF06A")
-                self.badge_rc.configure(fg_color="#5EF06A")
-                self.var_status_troca.set("Equilibrada (●'◡'●)")
-                self.lbl_status.configure(text_color="#5EF06A")
-        except(ZeroDivisionError):
-            self.var_status_troca.set("Indefinido (adicione pelo menos uma carta em cada lado da simulação)")
-            self.lbl_status.configure(text_color="#4E73D8")
+        # Atualiza totais na UI
+        self.lbl_total_ofertados.configure(
+            text=f"Valor total: R${self.total_ofertados:,.2f}"
+        )
+        self.lbl_total_recebidos.configure(
+            text=f"Valor total: R${self.total_recebidos:,.2f}"
+        )
+
+        # Se não houver cartas em ambos os lados, não calcula diferença
+        if (
+            len(self.simulacao.ofertados) < 1
+            or len(self.simulacao.recebidos) < 1
+        ):
+            # Exibe placeholder
+            self.lbl_diff_ofertados.configure(text="—")
+            self.lbl_diff_recebidos.configure(text="—")
+            # Mantém status indefinido
+            self.lbl_status.configure(
+                text=self.status_text, text_color="#4E73D8"
+            )
+            # Clear badges color
+            neutral_color = "#4E73D8"
+            self.badge_of.configure(fg_color=neutral_color)
+            self.badge_rc.configure(fg_color=neutral_color)
+            return
+
+        # Atualiza badges
+        self.lbl_diff_ofertados.configure(text=f"{self.simulacao.equilibrio:.0f}%")
+        self.lbl_diff_recebidos.configure(text=f"{(-self.simulacao.equilibrio):.0f}%")
+
+        if abs(self.simulacao.equilibrio) > self.simulacao.limite_percentual:
+            cor = "#FF6B6B"
+            status = "Desequilibrada ＞﹏＜"
+            cor_status = cor
+        else:
+            cor = "#5EF06A"
+            status = "Equilibrada (●'◡'●)"
+            cor_status = cor
+
+        self.badge_of.configure(fg_color=cor)
+        self.badge_rc.configure(fg_color=cor)
+        self.lbl_status.configure(text=status, text_color=cor_status)
 
     def _selecionar_ofertado(self, carta:Carta, indice, topo):
         topo.destroy()  
