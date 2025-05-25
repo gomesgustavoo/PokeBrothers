@@ -48,7 +48,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             painel=painel_ofertados,
             titulo="Cartas Oferecidas",
             lista_frames=self.ofertados_frames,
-            cmd_add=self._adicionar_ofertado,
+            cmd_add=self._adicionar_carta,
             ofertado=True,
         )
 
@@ -61,7 +61,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             painel=painel_recebidos,
             titulo="Cartas Recebidas",
             lista_frames=self.recebidos_frames,
-            cmd_add=self._adicionar_recebido,
+            cmd_add=self._adicionar_carta,
             ofertado=False,
         )
 
@@ -118,7 +118,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             )
             slot.grid(row=linha, column=coluna, padx=5, pady=5)
             btn = ctk.CTkButton(
-                slot, text="+ Add", command=lambda i=idx: cmd_add(i)
+                slot, text="+ Add", command=lambda i=idx: cmd_add(i, ofertado=ofertado)
             )
             btn.place(relx=0.5, rely=0.5, anchor="center")
             lista_frames.append((slot, ofertado))
@@ -145,11 +145,9 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             self.lbl_diff_recebidos = lbl_diff
             self.badge_rc = lbl_diff
 
-    def _adicionar_ofertado(self, indice: int):
-        self._escolher_fonte_carta(ofertado=True, indice=indice)
+    def _adicionar_carta(self, indice:int ,ofertado: bool):
+                self._escolher_fonte_carta(ofertado=ofertado, indice=indice)
 
-    def _adicionar_recebido(self, indice: int):
-        self._escolher_fonte_carta(ofertado=False, indice=indice)
 
     def _escolher_fonte_carta(self, ofertado: bool, indice: int):
         """
@@ -318,21 +316,28 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             self.simulacao.remover_recebido(item_id)
             items = self.simulacao.recebidos
             frames = self.recebidos_frames
+
         # Re-renderiza todos os slots
-        for idx, (frame_slot, total_var) in enumerate(frames):
+        for idx, (frame_slot, _) in enumerate(frames):
+            # limpa conteúdo
             for w in frame_slot.winfo_children():
                 w.destroy()
+
             if idx < len(items):
+                # renderiza a carta existente
                 self._renderizar_slot(ofertado, idx, items[idx])
             else:
+                # recria o botão de adicionar, chamando a função genérica
                 btn = ctk.CTkButton(
                     frame_slot,
                     text="+ Add",
-                    command=(lambda i=idx: self._adicionar_ofertado(i) if ofertado else self._adicionar_recebido(i))
+                    command=lambda i=idx, o=ofertado: self._adicionar_carta(i, o)
                 )
                 btn.place(relx=0.5, rely=0.5, anchor="center")
-        # atualiza totais
+
+        # atualiza totais e status
         self._atualizar_totais()
+
 
     def _registrar_simulacao(self):
         # Verifica desequilíbrio
