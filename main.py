@@ -14,6 +14,7 @@ from pages.register import RegisterPage
 from pages.Inventario import InventarioPage
 from pages.simulacao import SimulacaoTrocaPage
 from models.Colecionador import Colecionador
+from pages.lista_desejos import ListaDesejosPage
 
 DB_NAME = "colecionadores.db"
 
@@ -192,7 +193,7 @@ class UserApp(ctk.CTk):
             ("Perfil", self.show_profile),
             ("Pesquisar cartas", self.show_search_cards),
             ("Inventário", self.show_inventario),
-            ("Lista de Desejos", lambda: None),
+            ("Lista de Desejos", self.show_desejos),
             ("Simular Troca", self.show_simulacao),
             ("Histórico de Troca", lambda: None)
         ]
@@ -230,6 +231,9 @@ class UserApp(ctk.CTk):
 
     def show_simulacao(self):
         self._show_page(SimulacaoTrocaPage)
+
+    def show_desejos(self):
+        self._show_page(ListaDesejosPage)
 
 
 if __name__ == "__main__":
