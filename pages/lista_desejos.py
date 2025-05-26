@@ -16,21 +16,29 @@ class ListaDesejosPage(ctk.CTkFrame):
 
     # ------------------------------------------------------------- UI
     def _build(self):
-        ctk.CTkLabel(
-            self, text="Minha Lista de Desejos",
-            font=ctk.CTkFont(size=20, weight="bold")
-        ).grid(row=0, column=0, sticky="w", padx=10, pady=(10, 5))
+        # ---------- TOOLBAR (linha preta superior do mock) ----------
+        toolbar = ctk.CTkFrame(self, fg_color="transparent")
+        toolbar.grid(row=0, column=0, columnspan=2, sticky="we", pady=(10, 5))
+        toolbar.columnconfigure(0, weight=1)
 
         ctk.CTkButton(
-            self, text="+ Adicionar carta",
+            toolbar, text="+ adicionar carta",
             command=self._abrir_busca_cartas
-        ).grid(row=0, column=1, sticky="e", padx=10, pady=(10, 5))
+        ).grid(row=0, column=0, sticky="w", padx=10)
 
+        # ---------- Título “Minhas Cartas” logo abaixo -------------
+        ctk.CTkLabel(
+            self, text="Minhas Cartas",
+            font=ctk.CTkFont(size=20, weight="bold")
+        ).grid(row=1, column=0, columnspan=2, sticky="w", padx=10)
+
+        # ---------- Área com as cartas (grade dentro de scroll) ----
         self.frame_lista = ctk.CTkScrollableFrame(self, corner_radius=8)
-        self.frame_lista.grid(row=1, column=0, columnspan=2,
-                              sticky="nsew", padx=10, pady=(5, 10))
+        self.frame_lista.grid(row=2, column=0, columnspan=2,
+                                sticky="nsew", padx=10, pady=(5, 10))
 
-        self.rowconfigure(1, weight=1)
+        # expansão
+        self.rowconfigure(2, weight=1)
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
 
@@ -101,40 +109,82 @@ class ListaDesejosPage(ctk.CTkFrame):
             )
 
     def _criar_card_widget(self, parent, carta: Carta, idx: int):
+        """
+        Mini-card agora sem altura fixa (para não cortar a imagem)
+        e com o 'X' posicionado no canto inferior direito.
+        """
+        # ------------------ container ------------------
         card_frame = ctk.CTkFrame(
-            parent, corner_radius=8, fg_color="#1a1a1a", width=150
+            parent,
+            corner_radius=8,
+            fg_color="#1a1a1a",
+            width=280            # só fixa a largura
+            # -> removemos height=..., para não cortar
         )
-        card_frame.grid_propagate(False)
+        # permitir que o frame ajuste sua altura aos conteúdos
+        card_frame.grid_propagate(True)
 
-        img = SearchCardsPage.load_image_from_url(carta.imagem_url, size=self.TAM_SLOT)
-        lbl_img = ctk.CTkLabel(card_frame, image=img, text="") if img else \
-            ctk.CTkLabel(card_frame, text="[img]", width=self.TAM_SLOT[0], height=self.TAM_SLOT[1])
+        # configurações de grid (coluna 1 cresce, coluna 2 = botão)
+        card_frame.columnconfigure(1, weight=1)
+
+        # ------------------- imagem --------------------
+        img = SearchCardsPage.load_image_from_url(
+            carta.imagem_url, size=self.TAM_SLOT
+        )
         if img:
+            lbl_img = ctk.CTkLabel(card_frame, image=img, text="")
             lbl_img.image = img
-        lbl_img.pack(pady=(5, 2))
+        else:
+            lbl_img = ctk.CTkLabel(
+                card_frame,
+                text="[img]",
+                width=self.TAM_SLOT[0],
+                height=self.TAM_SLOT[1]
+            )
+        lbl_img.grid(
+            row=0, column=0,
+            rowspan=2,
+            padx=6, pady=6,
+            sticky="nw"
+        )
 
+        # ------------------- infos --------------------
+        info = ctk.CTkFrame(card_frame, fg_color="transparent")
+        info.grid(
+            row=0, column=1,
+            sticky="nw",
+            padx=(0, 6), pady=(6, 2)
+        )
         ctk.CTkLabel(
-            card_frame,
-            text=carta.nome[:25] + ("…" if len(carta.nome) > 25 else ""),
-            font=ctk.CTkFont(size=12, weight="bold"),
-            wraplength=130,
-            justify="center"
-        ).pack(padx=4)
-
+            info,
+            text=carta.nome,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            anchor="w",
+            wraplength=150
+        ).pack(anchor="w")
         ctk.CTkLabel(
-            card_frame,
-            text=f"R${carta.preco_real:,.2f}",
-            font=ctk.CTkFont(size=12)
-        ).pack()
+            info,
+            text=f"Preço: R${carta.preco_real:,.2f}",
+            font=ctk.CTkFont(size=12),
+            anchor="w"
+        ).pack(anchor="w")
 
+        # --------------- botão “X” --------------------
         ctk.CTkButton(
             card_frame,
-            text="Remover",
-            fg_color="#FF6B6B", hover_color="#FF4C4C",
+            text="X",
+            width=28,
+            fg_color="#FF3B3B",
+            hover_color="#E32B2B",
             command=lambda i=idx: self._remover_carta(i)
-        ).pack(pady=(4, 6))
+        ).grid(
+            row=1, column=2,
+            padx=(0, 6), pady=(0, 6),
+            sticky="se"   # canto inferior direito
+        )
 
         return card_frame
+
 
     # -------------------------------------------------- persistência (igual)
     def salvar_lista(self):
