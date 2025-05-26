@@ -2,8 +2,10 @@ import uuid
 import sqlite3
 import customtkinter as ctk
 from tkinter import messagebox
+import requests
 
-from services.pokeapi_service import import_card_to_db
+from services.pokeapi_service import import_card_to_db, buscar_carta_por_id
+from services.dollarapi_service import ExchangeService
 from pages.navbar import NavBar
 from pages.profile import ProfilePage
 from pages.search_cards import SearchCardsPage
@@ -11,6 +13,7 @@ from pages.login import LoginPage
 from pages.register import RegisterPage
 from pages.Inventario import InventarioPage
 from pages.simulacao import SimulacaoTrocaPage
+from models.Colecionador import Colecionador
 from pages.lista_desejos import ListaDesejosPage
 
 DB_NAME = "colecionadores.db"
@@ -62,6 +65,38 @@ def check_login(email, senha):
     return (True, row) if row else (False, None)
 
 
+def init_inventario_db():
+    conn = sqlite3.connect("inventario.db")
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS inventario (
+            id TEXT PRIMARY KEY,
+            colecionador_id TEXT NOT NULL,
+            carta_id TEXT NOT NULL,
+            quantidade INTEGER NOT NULL,
+            FOREIGN KEY (colecionador_id) REFERENCES colecionadores(id)
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
+
+def carregar_inventario_do_banco(colecionador_id):
+    from models.ItemInventario import ItemInventario
+    from services.pokeapi_service import buscar_carta_por_id
+    inventario = []
+    conn = sqlite3.connect("inventario.db")
+    cur = conn.cursor()
+    cur.execute("SELECT id, carta_id, quantidade FROM inventario WHERE colecionador_id=?", (colecionador_id,))
+    rows = cur.fetchall()
+    conn.close()
+    for row in rows:
+        carta = buscar_carta_por_id(row[1])
+        if carta:
+            inventario.append(ItemInventario(carta, quantidade=row[2], id=row[0]))
+    return inventario
+
 # ———————— APPLICATION ————————
 class UserApp(ctk.CTk):
     def __init__(self):
@@ -74,6 +109,13 @@ class UserApp(ctk.CTk):
         self.record_id = None
         self.current_name = ""
         self.current_email = ""
+        self.colecionador = Colecionador(
+            nome=self.current_name,
+            email=self.current_email,
+            senha="",  # Senha será definida no login/cadastro
+            id=self.record_id,
+            inventario=[]  # Deixe vazio, será carregado na página
+        )
 
         init_db()
 
@@ -108,6 +150,15 @@ class UserApp(ctk.CTk):
             return
         self.record_id, self.current_name = row
         self.current_email = email
+        # Carregar inventário do banco de dados ao logar
+        inventario = carregar_inventario_do_banco(self.record_id)
+        self.colecionador = Colecionador(
+            nome=self.current_name,
+            email=self.current_email,
+            senha="",  # Senha não é usada aqui
+            id=self.record_id,
+            inventario=inventario
+        )
         self.login_frame.place_forget()
         self._build_main_ui()
 
@@ -165,7 +216,7 @@ class UserApp(ctk.CTk):
         commands = [
             ("Perfil", self.show_profile),
             ("Pesquisar cartas", self.show_search_cards),
-            ("Inventário", lambda: None),
+            ("Inventário", self.show_inventario),
             ("Lista de Desejos", self.show_desejos),
             ("Simular Troca", self.show_simulacao),
             ("Histórico de Troca", lambda: None)
@@ -197,7 +248,7 @@ class UserApp(ctk.CTk):
         )
 
     def show_inventario(self):
-        self._show_page(InventarioPage)
+        self._show_page(InventarioPage, self.colecionador)
 
     def show_search_cards(self):
         self._show_page(SearchCardsPage)
@@ -211,5 +262,6 @@ class UserApp(ctk.CTk):
 
 if __name__ == "__main__":
     init_db()
+    init_inventario_db()
     app = UserApp()
     app.mainloop()

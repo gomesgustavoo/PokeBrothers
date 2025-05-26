@@ -89,3 +89,19 @@ def import_card_to_db(name: str) -> bool:
     #     preco_real=data["preco_real"]
     # )
     return True
+
+def buscar_carta_por_id(carta_id):
+    """
+    Busca uma carta pelo ID na API Pokémon TCG.
+    Retorna um objeto Carta ou None se não encontrar.
+    """
+    resp = requests.get(f"{BASE_URL}/cards/{carta_id}", headers=HEADERS)
+    if resp.status_code != 200:
+        return None
+
+    data = resp.json().get("data")
+    if not data:
+        return None
+
+    dollar_to_real = ExchangeService.fetch_usd_to_brl()
+    return Carta.from_api_data(data, dollar_to_real)
