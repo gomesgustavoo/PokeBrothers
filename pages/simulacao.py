@@ -1,4 +1,7 @@
 import customtkinter as ctk
+import requests
+from PIL import Image
+from io import BytesIO
 from models.Simulacao import SimulacaoTroca
 from pages.search_cards import SearchCardsPage
 from models.ItemTroca import ItemTroca
@@ -48,7 +51,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             painel=painel_ofertados,
             titulo="Cartas Oferecidas",
             lista_frames=self.ofertados_frames,
-            cmd_add=self._adicionar_ofertado,
+            cmd_add=self._adicionar_carta,
             ofertado=True,
         )
 
@@ -61,7 +64,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             painel=painel_recebidos,
             titulo="Cartas Recebidas",
             lista_frames=self.recebidos_frames,
-            cmd_add=self._adicionar_recebido,
+            cmd_add=self._adicionar_carta,
             ofertado=False,
         )
 
@@ -118,7 +121,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             )
             slot.grid(row=linha, column=coluna, padx=5, pady=5)
             btn = ctk.CTkButton(
-                slot, text="+ Add", command=lambda i=idx: cmd_add(i)
+                slot, text="+ Add", command=lambda i=idx: cmd_add(i, ofertado=ofertado)
             )
             btn.place(relx=0.5, rely=0.5, anchor="center")
             lista_frames.append((slot, ofertado))
@@ -145,11 +148,9 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             self.lbl_diff_recebidos = lbl_diff
             self.badge_rc = lbl_diff
 
-    def _adicionar_ofertado(self, indice: int):
-        self._escolher_fonte_carta(ofertado=True, indice=indice)
+    def _adicionar_carta(self, indice:int ,ofertado: bool):
+                self._escolher_fonte_carta(ofertado=ofertado, indice=indice)
 
-    def _adicionar_recebido(self, indice: int):
-        self._escolher_fonte_carta(ofertado=False, indice=indice)
 
     def _escolher_fonte_carta(self, ofertado: bool, indice: int):
         """
@@ -195,9 +196,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             master=topo,
             on_card_select=lambda carta:
                 (topo.destroy(),
-                    self._selecionar_ofertado(carta, indice, topo)
-                    if ofertado else
-                    self._selecionar_recebido(carta, indice, topo))
+                    self._selecionar_carta(ofertado, carta, indice, topo))
         ).pack(fill="both", expand=True)
 
     def _selecionar_da_lista_desejos(self, indice: int, parent=None):
@@ -213,7 +212,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         """
         return
 
-    def _atualizar_totais(self):
+    def _atualizar_totais_e_status(self):
         # Atualiza valores numéricos
         self.total_ofertados = self.simulacao.total_ofertados()
         self.total_recebidos = self.simulacao.total_recebidos()
@@ -261,21 +260,18 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         self.badge_rc.configure(fg_color=cor)
         self.lbl_status.configure(text=status, text_color=cor_status)
 
-    def _selecionar_ofertado(self, carta:Carta, indice, topo):
+    def _selecionar_carta(self, ofertado:bool, carta:Carta, indice, topo):
         topo.destroy()  
         item = ItemTroca(carta)
         # adiciona na simulação
-        self.simulacao.adicionar_ofertado(item)
-        # renderiza no slot apropriado
-        self._renderizar_slot(ofertado=True, indice=indice, item=item)
-        self._atualizar_totais()
+        if ofertado:
+            self.simulacao.adicionar_ofertado(item)
+        else:
+            self.simulacao.adicionar_recebido(item)
 
-    def _selecionar_recebido(self, carta:Carta, indice, topo):
-        topo.destroy()
-        item = ItemTroca(carta)
-        self.simulacao.adicionar_recebido(item)
-        self._renderizar_slot(ofertado=False, indice=indice, item=item)
-        self._atualizar_totais()
+        # renderiza no slot apropriado
+        self._renderizar_slot(ofertado=ofertado, indice=indice, item=item)
+        self._atualizar_totais_e_status()
 
     def _renderizar_slot(self, ofertado: bool, indice: int, item: ItemTroca):
         """
@@ -289,7 +285,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             w.destroy()
 
         # imagem clicável (não altera função de seleção já feito)
-        img = SearchCardsPage.load_image_from_url(item.carta.imagem_url, size=(100,140))
+        img = self.load_image_from_url(item.carta.imagem_url, size=(100,140))
         if img:
             lbl_img = ctk.CTkLabel(slot_frame, image=img, text="")
             lbl_img.image = img
@@ -308,6 +304,16 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             command=lambda i=item.id, o=ofertado: self._remover_item(i, o)
         ).pack(pady=(5,0))
 
+    @staticmethod
+    def load_image_from_url(url, size=(150, 210)):
+        try:
+            response = requests.get(url, timeout=5)
+            image = Image.open(BytesIO(response.content))
+            return ctk.CTkImage(light_image=image, dark_image=image, size=size)
+        except Exception:
+            return None
+
+
     def _remover_item(self, item_id: str, ofertado: bool):
         # Remove do modelo
         if ofertado:
@@ -318,21 +324,28 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             self.simulacao.remover_recebido(item_id)
             items = self.simulacao.recebidos
             frames = self.recebidos_frames
+
         # Re-renderiza todos os slots
-        for idx, (frame_slot, total_var) in enumerate(frames):
+        for idx, (frame_slot, _) in enumerate(frames):
+            # limpa conteúdo
             for w in frame_slot.winfo_children():
                 w.destroy()
+
             if idx < len(items):
+                # renderiza a carta existente
                 self._renderizar_slot(ofertado, idx, items[idx])
             else:
+                # recria o botão de adicionar, chamando a função genérica
                 btn = ctk.CTkButton(
                     frame_slot,
                     text="+ Add",
-                    command=(lambda i=idx: self._adicionar_ofertado(i) if ofertado else self._adicionar_recebido(i))
+                    command=lambda i=idx, o=ofertado: self._adicionar_carta(i, o)
                 )
                 btn.place(relx=0.5, rely=0.5, anchor="center")
-        # atualiza totais
-        self._atualizar_totais()
+
+        # atualiza totais e status
+        self._atualizar_totais_e_status()
+
 
     def _registrar_simulacao(self):
         # Verifica desequilíbrio
