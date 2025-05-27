@@ -205,8 +205,9 @@ class InventarioPage(ctk.CTkFrame):
             lbl_img = ctk.CTkLabel(frame, text="[imagem]")
             lbl_img.pack(pady=(5, 0))
 
-        # Nome e quantidade
+        # Nome, preço e quantidade
         ctk.CTkLabel(frame, text=carta.nome, font=ctk.CTkFont(size=13, weight="bold")).pack()
+        ctk.CTkLabel(frame, text=f"Preço: US$ {carta.preco_dolar:.2f} / R$ {carta.preco_real:.2f}", font=ctk.CTkFont(size=12)).pack()
         ctk.CTkLabel(frame, text=f"Qtd: {item.get_quantidade()}").pack()
 
         # Botão de exclusão (ícone pequeno)
