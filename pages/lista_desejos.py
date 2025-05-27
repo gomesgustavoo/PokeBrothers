@@ -61,7 +61,7 @@ class ListaDesejosPage(ctk.CTkFrame):
             return
 
         # 2) Duplicata
-        if any(c.id == carta.id for c in self.cartas):
+        if any(c.get_id() == carta.get_id() for c in self.cartas):
             messagebox.showerror(
                 "Carta repetida",
                 "Essa carta já está na lista!"

@@ -83,16 +83,25 @@ class InventarioPage(ctk.CTkFrame):
                 quantidade.set(quantidade.get() - 1)
         # Funções para auto-repetição ao segurar
         def start_auto_repeat(func):
+            after_id = None
+            delay = [300]  # Initial delay in ms, will decrease
+            min_delay = 60
+            step = 30
             def repeat():
                 func()
                 nonlocal after_id
-                after_id = modal.after(60, repeat)
-            after_id = None
+                delay[0] = max(min_delay, delay[0] - step)
+                after_id = modal.after(delay[0], repeat)
             def on_press(event=None):
-                repeat()
+                delay[0] = 300  # Reset delay on new press
+                # Não chama repeat() imediatamente, espera o usuário segurar
+                nonlocal after_id
+                after_id = modal.after(delay[0], repeat)
             def on_release(event=None):
+                nonlocal after_id
                 if after_id:
                     modal.after_cancel(after_id)
+                    after_id = None
             return on_press, on_release
         # Botão menos
         btn_menos = ctk.CTkButton(frame, text="-", width=32, command=diminuir)
@@ -117,7 +126,7 @@ class InventarioPage(ctk.CTkFrame):
     def _adicionar_carta_confirmada(self, carta: Carta, qtd: int):
         # Verifica se já existe a carta no inventário
         for item in self.colecionador.get_inventario():
-            if item.get_carta().id == carta.id:
+            if item.get_carta_id== carta.get_id():
                 item.set_quantidade(item.get_quantidade() + qtd)
                 self._atualizar_quantidade_db(item.get_id(), item.get_quantidade())
                 break
@@ -132,7 +141,7 @@ class InventarioPage(ctk.CTkFrame):
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO inventario (id, colecionador_id, carta_id, quantidade) VALUES (?, ?, ?, ?)",
-            (item.get_id(), self.colecionador.get_id(), item.get_carta().id, item.get_quantidade())
+            (item.get_id(), self.colecionador.get_id(), item.get_carta().get_id(), item.get_quantidade())
         )
         conn.commit()
         conn.close()
@@ -193,7 +202,8 @@ class InventarioPage(ctk.CTkFrame):
             lbl_img.image = img
             lbl_img.pack(pady=(5, 0))
         else:
-            ctk.CTkLabel(frame, text="[imagem]").pack(pady=(5, 0))
+            lbl_img = ctk.CTkLabel(frame, text="[imagem]")
+            lbl_img.pack(pady=(5, 0))
 
         # Nome e quantidade
         ctk.CTkLabel(frame, text=carta.nome, font=ctk.CTkFont(size=13, weight="bold")).pack()
@@ -208,9 +218,34 @@ class InventarioPage(ctk.CTkFrame):
             fg_color="#d9534f",
             text_color="white",
             font=ctk.CTkFont(size=14),
-            command=lambda i=item.get_id(): self._remover_carta(i)
+            command=lambda i=item: self._abrir_modal_quantidade_exclusao(i)
         )
         btn_del.pack(pady=(5, 0))
+
+        # Modal de visualização ao clicar na carta
+        def abrir_modal_visualizacao(event=None):
+            modal = ctk.CTkToplevel(self)
+            modal.title(f"Visualizar Carta: {carta.nome}")
+            modal.geometry("350x500")
+            # Imagem grande
+            img_grande = self._carregar_imagem_url(carta.imagem_url, size=(200, 280))
+            if img_grande:
+                ctk.CTkLabel(modal, image=img_grande, text="").pack(pady=(20, 10))
+            else:
+                ctk.CTkLabel(modal, text="[imagem]").pack(pady=(20, 10))
+            # Nome
+            ctk.CTkLabel(modal, text=carta.nome, font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(0, 5))
+            # Tipo, raridade, coleção
+            ctk.CTkLabel(modal, text=f"Tipo: {carta.tipo}").pack()
+            ctk.CTkLabel(modal, text=f"Raridade: {carta.raridade}").pack()
+            ctk.CTkLabel(modal, text=f"Coleção: {carta.colecao}").pack()
+            # Preço
+            ctk.CTkLabel(modal, text=f"Preço: US$ {carta.preco_dolar:.2f} / R$ {carta.preco_real:.2f}").pack(pady=(10, 0))
+            # Fechar
+            ctk.CTkButton(modal, text="Fechar", command=modal.destroy).pack(pady=(30, 0))
+        # Bind para abrir modal ao clicar no frame ou imagem
+        frame.bind("<Button-1>", abrir_modal_visualizacao)
+        lbl_img.bind("<Button-1>", abrir_modal_visualizacao)
 
     @staticmethod
     def _carregar_imagem_url(url, size=(90, 126)):
@@ -220,3 +255,75 @@ class InventarioPage(ctk.CTkFrame):
             return ctk.CTkImage(light_image=image, dark_image=image, size=size)
         except Exception:
             return None
+
+    def _abrir_modal_quantidade_exclusao(self, item: ItemInventario):
+        # Abre um modal para escolher a quantidade a remover de uma carta do inventário
+        max_remover = item.get_quantidade()
+        modal = ctk.CTkToplevel(self)
+        modal.title("Remover Quantidade de Cartas")
+        modal.geometry("300x180")
+        ctk.CTkLabel(modal, text=f"Remover '{item.get_carta().nome}' do inventário", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=(15, 10))
+        frame = ctk.CTkFrame(modal)
+        frame.pack(pady=10)
+        quantidade = ctk.IntVar(value=1)
+        # Funções de incremento/decremento
+        def aumentar():
+            if quantidade.get() < max_remover:
+                quantidade.set(quantidade.get() + 1)
+        def diminuir():
+            if quantidade.get() > 1:
+                quantidade.set(quantidade.get() - 1)
+        # Funções para auto-repetição ao segurar
+        def start_auto_repeat(func):
+            after_id = None
+            delay = [300]  # Initial delay in ms, will decrease
+            min_delay = 60
+            step = 30
+            def repeat():
+                func()
+                nonlocal after_id
+                delay[0] = max(min_delay, delay[0] - step)
+                after_id = modal.after(delay[0], repeat)
+            def on_press(event=None):
+                delay[0] = 300  # Reset delay on new press
+                nonlocal after_id
+                after_id = modal.after(delay[0], repeat)
+            def on_release(event=None):
+                nonlocal after_id
+                if after_id:
+                    modal.after_cancel(after_id)
+                    after_id = None
+            return on_press, on_release
+        # Botão menos
+        btn_menos = ctk.CTkButton(frame, text="-", width=32, command=diminuir)
+        btn_menos.grid(row=0, column=0, padx=5)
+        menos_press, menos_release = start_auto_repeat(diminuir)
+        btn_menos.bind('<ButtonPress-1>', menos_press)
+        btn_menos.bind('<ButtonRelease-1>', menos_release)
+        # Label quantidade
+        lbl_qtd = ctk.CTkLabel(frame, textvariable=quantidade, width=40, font=ctk.CTkFont(size=16, weight="bold"))
+        lbl_qtd.grid(row=0, column=1, padx=5)
+        # Botão mais
+        btn_mais = ctk.CTkButton(frame, text="+", width=32, command=aumentar)
+        btn_mais.grid(row=0, column=2, padx=5)
+        mais_press, mais_release = start_auto_repeat(aumentar)
+        btn_mais.bind('<ButtonPress-1>', mais_press)
+        btn_mais.bind('<ButtonRelease-1>', mais_release)
+        # Botão de confirmação
+        def confirmar():
+            self._remover_carta_quantidade(item, quantidade.get())
+            modal.destroy()
+        ctk.CTkButton(modal, text="Remover", fg_color="#d9534f", command=confirmar).pack(pady=(30, 0))
+
+    def _remover_carta_quantidade(self, item: ItemInventario, qtd: int):
+        # Remove a quantidade especificada de cartas do inventário
+        if qtd < item.get_quantidade():
+            item.set_quantidade(item.get_quantidade() - qtd)
+            self._atualizar_quantidade_db(item.get_id(), item.get_quantidade())
+        else:
+            # Remove o item completamente se a quantidade for igual ou maior
+            inventario = self.colecionador.get_inventario()
+            if item in inventario:
+                inventario.remove(item)
+                self._remover_item_db(item.get_id())
+        self._renderizar_cartas()

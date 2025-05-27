@@ -31,3 +31,9 @@ class ItemInventario:
 
     def set_quantidade(self, quantidade: int):
         self.__quantidade = quantidade
+
+    def get_carta_id(self):
+        """
+        Retorna o id da carta associada a este item do inventário.
+        """
+        return self.__carta.get_id()
