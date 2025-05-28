@@ -114,7 +114,7 @@ class UserApp(ctk.CTk):
             email=self.current_email,
             senha="",  # Senha será definida no login/cadastro
             id=self.record_id,
-            inventario=[]  # Deixe vazio, será carregado na página
+            inventario=[]
         )
 
         init_db()
