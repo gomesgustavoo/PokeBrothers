@@ -200,7 +200,7 @@ class SearchCardsPage(ctk.CTkFrame):
         ).pack(anchor="w")
         ctk.CTkLabel(
             info_frame,
-            text=f'Preço de mercado: US${card.preco_dolar:.2f}',
+            text=f'Preço de mercado: R${card.preco_real:.2f}',
             font=ctk.CTkFont(size=12),
             anchor="w"
         ).pack(anchor="w")

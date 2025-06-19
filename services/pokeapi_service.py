@@ -3,14 +3,15 @@ from uuid import uuid4
 import math
 
 from models.Carta import Carta
+from services.dollarapi_service import ExchangeService
 # substitua pela sua chave
 API_KEY = "b85a009f-df35-4234-aa2d-0f4b6799a776"
 BASE_URL = "https://api.pokemontcg.io/v2"
 HEADERS = {"X-Api-Key": API_KEY}
-# ajuste conforme a cotação real
-DOLLAR_TO_REAL = 5.0
 
 def fetch_card_data(name: str, page: int = 1, tipo: str = "", raridade: str = "", colecao: str = "") -> tuple[list[dict], int]:
+
+
     query_parts = [f'name:*{name.title()}*']
     if tipo:
         query_parts.append(f'types:{tipo}')
@@ -30,6 +31,9 @@ def fetch_card_data(name: str, page: int = 1, tipo: str = "", raridade: str = ""
         return [], 1
 
     data = resp.json()
+
+    dollar_to_real = ExchangeService.fetch_usd_to_brl()
+    print("Valor do dollar:" + str(dollar_to_real))
     
     items = data.get("data", [])
     total_count = data.get("totalCount", len(items))
@@ -37,13 +41,8 @@ def fetch_card_data(name: str, page: int = 1, tipo: str = "", raridade: str = ""
 
     cards = []
     for c in items:
-        tipos = ", ".join(c.get("types", []))
-        prices = c.get("tcgplayer", {}).get("prices", {})
-        price_info = prices.get("holofoil") or prices.get("normal") or {}
-        usd = price_info.get("market") or price_info.get("mid") or 0.0
-        brl = usd * DOLLAR_TO_REAL
 
-        cards = [Carta.from_api_data(c, DOLLAR_TO_REAL) for c in items]
+        cards = [Carta.from_api_data(c, dollar_to_real) for c in items]
 
     
     return cards, total_pages
@@ -90,3 +89,19 @@ def import_card_to_db(name: str) -> bool:
     #     preco_real=data["preco_real"]
     # )
     return True
+
+def buscar_carta_por_id(carta_id):
+    """
+    Busca uma carta pelo ID na API Pokémon TCG.
+    Retorna um objeto Carta ou None se não encontrar.
+    """
+    resp = requests.get(f"{BASE_URL}/cards/{carta_id}", headers=HEADERS)
+    if resp.status_code != 200:
+        return None
+
+    data = resp.json().get("data")
+    if not data:
+        return None
+
+    dollar_to_real = ExchangeService.fetch_usd_to_brl()
+    return Carta.from_api_data(data, dollar_to_real)

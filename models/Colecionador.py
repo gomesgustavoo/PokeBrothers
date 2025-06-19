@@ -75,3 +75,9 @@ class Colecionador:
 
     def set_historicoTrocas(self, historicoTrocas: list):  # Troque para List[Troca] se a classe Troca existir
         self.__historicoTrocas = historicoTrocas
+
+    def adicionar_item_inventario(self, item: ItemInventario):
+        """
+        Adiciona um ItemInventario ao final do inventário do colecionador.
+        """
+        self.__inventario.append(item)
