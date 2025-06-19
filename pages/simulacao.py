@@ -1,6 +1,7 @@
 import customtkinter as ctk
 from models.Simulacao import SimulacaoTroca
 from pages.search_cards import SearchCardsPage
+from pages.local_search_cards import LocalSearchCardsPage
 from models.ItemTroca import ItemTroca
 from models.Carta import Carta
 from tkinter import messagebox
@@ -18,8 +19,10 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
     com painéis de cartas oferecidas e recebidas.
     """
 
-    def __init__(self, master):
+    def __init__(self, master, inventario=None, lista_desejos=None):
         super().__init__(master, corner_radius=12)
+        self.inventario = inventario or []
+        self.lista_desejos = lista_desejos or []
         self.simulacao = SimulacaoTroca(limite_percentual=10.0)
         self.ofertados_frames = []
         self.recebidos_frames = []
@@ -130,6 +133,33 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         SearchCardsPage(
             master=topo,
             on_card_select=lambda carta: self._selecionar_recebido(carta, indice, topo)
+        ).pack(fill="both", expand=True)
+
+    def _selecionar_do_inventario(self, indice):
+        """Abre busca limitada às cartas do inventário."""
+        if not self.inventario:
+            return
+        cartas = [item.get_carta() for item in self.inventario]
+        topo = ctk.CTkToplevel(self)
+        topo.title("Inventário")
+        topo.geometry("800x600")
+        LocalSearchCardsPage(
+            master=topo,
+            cards=cartas,
+            on_card_select=lambda c: self._selecionar_ofertado(c, indice, topo)
+        ).pack(fill="both", expand=True)
+
+    def _selecionar_da_lista_desejos(self, indice):
+        """Abre busca limitada às cartas da lista de desejos."""
+        if not self.lista_desejos:
+            return
+        topo = ctk.CTkToplevel(self)
+        topo.title("Lista de Desejos")
+        topo.geometry("800x600")
+        LocalSearchCardsPage(
+            master=topo,
+            cards=self.lista_desejos,
+            on_card_select=lambda c: self._selecionar_recebido(c, indice, topo)
         ).pack(fill="both", expand=True)
 
 
