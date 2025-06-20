@@ -2,6 +2,7 @@ import customtkinter as ctk
 import requests
 from PIL import Image
 from io import BytesIO
+from models.Colecionador import Colecionador
 from models.Simulacao import SimulacaoTroca
 from pages.search_cards import SearchCardsPage
 from pages.local_search_cards import LocalSearchCardsPage
@@ -22,10 +23,10 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
     com painéis de cartas oferecidas e recebidas.
     """
 
-    def __init__(self, master, inventario=None, lista_desejos=None):
+    def __init__(self, master, colecionador: Colecionador):
         super().__init__(master, corner_radius=12)
-        self.inventario = inventario or []
-        self.lista_desejos = lista_desejos or []
+        self.inventario = colecionador.get_inventario() or []
+        self.lista_desejos = colecionador.get_listaDesejos() or []
         self.simulacao = SimulacaoTroca(limite_percentual=10.0)
         self.ofertados_frames = []
         self.recebidos_frames = []
@@ -167,10 +168,10 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         # Escolha o texto e a função correta
         if not ofertado:
             txt_lista = "Selecionar da Lista de Desejos"
-            cmd_lista = lambda: self._selecionar_da_lista_desejos(indice, topo)
+            cmd_lista = lambda: self._selecionar_da_lista_desejos(ofertado, indice)
         else:
             txt_lista = "Selecionar do Inventário"
-            cmd_lista = lambda: self._selecionar_do_inventario(indice, topo)
+            cmd_lista = lambda: self._selecionar_do_inventario(ofertado, indice)
 
         # Botão buscar na API
         ctk.CTkButton(
@@ -203,9 +204,13 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         ).pack(fill="both", expand=True)
 
 
-    def _selecionar_do_inventario(self, indice):
+    def _selecionar_do_inventario(self,ofertado, indice):
         """Abre busca limitada às cartas do inventário."""
         if not self.inventario:
+            messagebox.showerror(
+                "Seleção de Inventário",
+                "Seu inventário está vazio. Adicione cartas antes de simular trocas."
+            )
             return
         cartas = [item.get_carta() for item in self.inventario]
         topo = ctk.CTkToplevel(self)
@@ -214,12 +219,16 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         LocalSearchCardsPage(
             master=topo,
             cards=cartas,
-            on_card_select=lambda c: self._selecionar_ofertado(c, indice, topo)
+            on_card_select=lambda carta: self._selecionar_carta(ofertado, carta, indice, topo)
         ).pack(fill="both", expand=True)
 
-    def _selecionar_da_lista_desejos(self, indice):
+    def _selecionar_da_lista_desejos(self, ofertado, indice):
         """Abre busca limitada às cartas da lista de desejos."""
         if not self.lista_desejos:
+            messagebox.showerror(
+                "Seleção de Lista de Desejos",
+                "Sua lista de desejos está vazia. Adicione cartas antes de simular trocas."
+            )
             return
         topo = ctk.CTkToplevel(self)
         topo.title("Lista de Desejos")
@@ -227,7 +236,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         LocalSearchCardsPage(
             master=topo,
             cards=self.lista_desejos,
-            on_card_select=lambda c: self._selecionar_recebido(c, indice, topo)
+            on_card_select=lambda carta: self._selecionar_carta(ofertado, carta, indice, topo)
         ).pack(fill="both", expand=True)
 
 
@@ -368,9 +377,58 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
 
 
     def _registrar_simulacao(self):
-        # Verifica desequilíbrio
+        if not self.simulacao.ofertados or not self.simulacao.recebidos:
+            return messagebox.showerror(
+                "Simulação Inválida",
+                "Adicione pelo menos uma carta em cada lado da simulação."
+            )
+
         if self.simulacao.esta_desequilibrada():
-            # TODO: abrir modal de alerta antes de confirmar
-            return
-        # TODO: persistir simulação em backend ou local
-        return messagebox.showinfo("Simulação", "Simulação registrada com sucesso!")
+            # em vez de showwarning, chama nosso modal de confirmação
+            return self._confirmar_desequilibrio()
+
+        # se chegou aqui, está equilibrada
+        return self._finalizar_registro()
+
+    def _confirmar_desequilibrio(self):
+        modal = ctk.CTkToplevel(self)
+        modal.title("Simulação Desequilibrada")
+        modal.geometry("400x160")
+        modal.grab_set()  # torna modal: bloqueia janela-pai até fechar
+
+        # Mensagem
+        ctk.CTkLabel(
+            modal,
+            text="A simulação está desequilibrada.\nDeseja registrar mesmo assim?",
+            justify="center",
+            wraplength=360
+        ).pack(padx=20, pady=(20, 10))
+
+        # Frame para botões
+        btn_frame = ctk.CTkFrame(modal)
+        btn_frame.pack(pady=10)
+
+        # Botão Cancelar
+        ctk.CTkButton(
+            btn_frame,
+            text="Cancelar",
+            width=100,
+            command=modal.destroy
+        ).pack(side="left", padx=10)
+
+        # Botão Registrar
+        def on_registrar():
+            modal.destroy()
+            self._finalizar_registro()
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Registrar",
+            width=100,
+            command=on_registrar
+        ).pack(side="left", padx=10)
+
+    def _finalizar_registro(self):
+        # aqui você faz o que for preciso para salvar/registrar a simulação
+        # por exemplo, gravar no banco ou atualizar UI
+        messagebox.showinfo("Simulação", "Simulação registrada com sucesso!")
