@@ -15,6 +15,7 @@ from pages.Inventario import InventarioPage
 from pages.simulacao import SimulacaoTrocaPage
 from models.Colecionador import Colecionador
 from pages.lista_desejos import ListaDesejosPage
+from services.inventario_repository import InventarioRepository
 
 DB_NAME = "colecionadores.db"
 INVENTARIO_DB = "inventario.db"
@@ -83,20 +84,6 @@ def init_inventario_db():
     conn.commit()
     conn.close()
 
-def carregar_inventario_do_banco(colecionador_id):
-    from models.ItemInventario import ItemInventario
-    inventario = []
-    conn = sqlite3.connect(INVENTARIO_DB)
-    cur = conn.cursor()
-    cur.execute("SELECT id, carta_id, quantidade FROM inventario WHERE colecionador_id=?", (colecionador_id,))
-    rows = cur.fetchall()
-    conn.close()
-    for row in rows:
-        carta = buscar_carta_por_id(row[1])
-        if carta:
-            inventario.append(ItemInventario(carta, quantidade=row[2], id=row[0]))
-    return inventario
-
 def init_lista_desejos_db():
     conn = sqlite3.connect(INVENTARIO_DB)
     cur = conn.cursor()
@@ -157,7 +144,7 @@ class UserApp(ctk.CTk):
             return
         self.record_id, self.current_name = row
         self.current_email = email
-        inventario = carregar_inventario_do_banco(self.record_id)
+        inventario = InventarioRepository.carregar_inventario(self.record_id)
         self.colecionador = Colecionador(
             nome=self.current_name,
             email=self.current_email,

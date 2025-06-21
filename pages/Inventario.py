@@ -9,6 +9,7 @@ from PIL import Image
 import requests
 from io import BytesIO
 from pages.search_cards import SearchCardsPage
+from services.inventario_repository import InventarioRepository
 
 class InventarioPage(ctk.CTkFrame):
     """
@@ -24,16 +25,7 @@ class InventarioPage(ctk.CTkFrame):
         self._build()
 
     def _carregar_inventario(self):
-        conn = sqlite3.connect("inventario.db")
-        cur = conn.cursor()
-        cur.execute("SELECT id, carta_id, quantidade FROM inventario WHERE colecionador_id=?", (self.colecionador.get_id(),))
-        rows = cur.fetchall()
-        conn.close()
-        inventario = []
-        for row in rows:
-            carta = buscar_carta_por_id(row[1])
-            if carta:
-                inventario.append(ItemInventario(carta, quantidade=row[2], id=row[0]))
+        inventario = InventarioRepository.carregar_inventario(self.colecionador.get_id())
         self.colecionador.set_inventario(inventario)
 
     def _build(self):
@@ -137,24 +129,15 @@ class InventarioPage(ctk.CTkFrame):
         self._renderizar_cartas()
 
     def _adicionar_item_db(self, item: ItemInventario):
-        conn = sqlite3.connect("inventario.db")
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO inventario (id, colecionador_id, carta_id, quantidade) VALUES (?, ?, ?, ?)",
-            (item.get_id(), self.colecionador.get_id(), item.get_carta().get_id(), item.get_quantidade())
-        )
-        conn.commit()
-        conn.close()
+        InventarioRepository.adicionar_item(item, self.colecionador.get_id())
 
     def _atualizar_quantidade_db(self, item_id, nova_quantidade):
-        conn = sqlite3.connect("inventario.db")
-        cur = conn.cursor()
-        cur.execute(
-            "UPDATE inventario SET quantidade=? WHERE id=?",
-            (nova_quantidade, item_id)
-        )
-        conn.commit()
-        conn.close()
+        # Atualiza a quantidade do item no banco usando o repositório
+        for item in self.colecionador.get_inventario():
+            if item.get_id() == item_id:
+                item.set_quantidade(nova_quantidade)
+                InventarioRepository.atualizar_item(item)
+                break
 
     def _remover_carta(self, item_id: str):
         inventario = self.colecionador.get_inventario()
@@ -170,11 +153,7 @@ class InventarioPage(ctk.CTkFrame):
         self._renderizar_cartas()
 
     def _remover_item_db(self, item_id):
-        conn = sqlite3.connect("inventario.db")
-        cur = conn.cursor()
-        cur.execute("DELETE FROM inventario WHERE id=?", (item_id,))
-        conn.commit()
-        conn.close()
+        InventarioRepository.remover_item(item_id)
 
     def _renderizar_cartas(self):
         for widget in self.frame_cartas.winfo_children():
