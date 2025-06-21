@@ -85,7 +85,7 @@ class Colecionador:
     @classmethod
     def from_db(cls, colecionador_id):
         import sqlite3
-        from services.inventario_repository import InventarioRepository
+        from services.inventario_repo import InventarioRepo
         DB_NAME = "colecionadores.db"
         conn = sqlite3.connect(DB_NAME)
         cur = conn.cursor()
@@ -94,7 +94,7 @@ class Colecionador:
         conn.close()
         if not row:
             return None
-        inventario = InventarioRepository.carregar_inventario(colecionador_id)
+        inventario = InventarioRepo.carregar_inventario(colecionador_id)
         return cls(
             nome=row[1],
             email=row[2],

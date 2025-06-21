@@ -4,7 +4,7 @@ from services.pokeapi_service import buscar_carta_por_id
 
 INVENTARIO_DB = 'inventario.db'
 
-class InventarioRepository:
+class InventarioRepo:
     @staticmethod
     def carregar_inventario(colecionador_id):
         inventario = []

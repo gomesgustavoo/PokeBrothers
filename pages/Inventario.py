@@ -9,7 +9,7 @@ from PIL import Image
 import requests
 from io import BytesIO
 from pages.search_cards import SearchCardsPage
-from services.inventario_repository import InventarioRepository
+from services.inventario_repo import InventarioRepo
 
 class InventarioPage(ctk.CTkFrame):
     """
@@ -20,12 +20,12 @@ class InventarioPage(ctk.CTkFrame):
     def __init__(self, master, colecionador):
         super().__init__(master, corner_radius=12)
         self.colecionador = colecionador
-        self._inventarioLotado = False
         self._carregar_inventario()
         self._build()
 
     def _carregar_inventario(self):
-        inventario = InventarioRepository.carregar_inventario(self.colecionador.get_id())
+        colecionador_id=self.colecionador.get_id()
+        inventario = InventarioRepo.carregar_inventario(colecionador_id)
         self.colecionador.set_inventario(inventario)
 
     def _build(self):
@@ -38,14 +38,15 @@ class InventarioPage(ctk.CTkFrame):
         self.frame_cartas.pack(fill="both", expand=True, padx=10, pady=10)
         self._renderizar_cartas()
 
+    def _inventario_esta_lotado(self):
+        total_cartas = sum(item.get_quantidade() for item in self.colecionador.get_inventario())
+        return total_cartas >= self._MAX_CARTAS
+
     def _abrir_modal_adicionar(self):
         # Verifica se o inventário está lotado ANTES de abrir a busca
-        total_cartas = sum(item.get_quantidade() for item in self.colecionador.get_inventario())
-        if total_cartas >= self._MAX_CARTAS:
-            self._inventarioLotado = True
+        if self._inventario_esta_lotado():
             messagebox.showwarning("Inventário Lotado", "Número Máximo de cartas atingido")
             return
-        self._inventarioLotado = False
         topo = ctk.CTkToplevel(self)
         topo.title("Adicionar Carta ao Inventário")
         topo.geometry("800x600")
@@ -115,10 +116,13 @@ class InventarioPage(ctk.CTkFrame):
             modal.destroy()
         ctk.CTkButton(modal, text="Adicionar", command=confirmar).pack(pady=(50, 0))
 
+    def _mesma_carta(self, item: ItemInventario, carta: Carta):
+        return item.get_carta_id() == carta.get_id()
+
     def _adicionar_carta_confirmada(self, carta: Carta, qtd: int):
         # Verifica se já existe a carta no inventário
         for item in self.colecionador.get_inventario():
-            if item.get_carta_id() == carta.get_id():
+            if self._mesma_carta(item, carta):
                 item.set_quantidade(item.get_quantidade() + qtd)
                 self._atualizar_quantidade_db(item.get_id(), item.get_quantidade())
                 break
@@ -129,14 +133,14 @@ class InventarioPage(ctk.CTkFrame):
         self._renderizar_cartas()
 
     def _adicionar_item_db(self, item: ItemInventario):
-        InventarioRepository.adicionar_item(item, self.colecionador.get_id())
+        InventarioRepo.adicionar_item(item, self.colecionador.get_id())
 
     def _atualizar_quantidade_db(self, item_id, nova_quantidade):
         # Atualiza a quantidade do item no banco usando o repositório
         for item in self.colecionador.get_inventario():
             if item.get_id() == item_id:
                 item.set_quantidade(nova_quantidade)
-                InventarioRepository.atualizar_item(item)
+                InventarioRepo.atualizar_item(item)
                 break
 
     def _remover_carta(self, item_id: str):
@@ -153,7 +157,7 @@ class InventarioPage(ctk.CTkFrame):
         self._renderizar_cartas()
 
     def _remover_item_db(self, item_id):
-        InventarioRepository.remover_item(item_id)
+        InventarioRepo.remover_item(item_id)
 
     def _renderizar_cartas(self):
         for widget in self.frame_cartas.winfo_children():

@@ -15,7 +15,7 @@ from pages.Inventario import InventarioPage
 from pages.simulacao import SimulacaoTrocaPage
 from models.Colecionador import Colecionador
 from pages.lista_desejos import ListaDesejosPage
-from services.inventario_repository import InventarioRepository
+from services.inventario_repo import InventarioRepo
 
 DB_NAME = "colecionadores.db"
 INVENTARIO_DB = "inventario.db"
