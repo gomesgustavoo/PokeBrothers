@@ -1,6 +1,11 @@
 import customtkinter as ctk
+import requests
+from PIL import Image
+from io import BytesIO
+from models.Colecionador import Colecionador
 from models.Simulacao import SimulacaoTroca
 from pages.search_cards import SearchCardsPage
+from pages.local_search_cards import LocalSearchCardsPage
 from models.ItemTroca import ItemTroca
 from models.Carta import Carta
 from tkinter import messagebox
@@ -18,8 +23,10 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
     com painéis de cartas oferecidas e recebidas.
     """
 
-    def __init__(self, master):
+    def __init__(self, master, colecionador: Colecionador):
         super().__init__(master, corner_radius=12)
+        self.inventario = colecionador.get_inventario() or []
+        self.lista_desejos = colecionador.get_listaDesejos() or []
         self.simulacao = SimulacaoTroca(limite_percentual=10.0)
         self.ofertados_frames = []
         self.recebidos_frames = []
@@ -48,7 +55,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             painel=painel_ofertados,
             titulo="Cartas Oferecidas",
             lista_frames=self.ofertados_frames,
-            cmd_add=self._adicionar_ofertado,
+            cmd_add=self._adicionar_carta,
             ofertado=True,
         )
 
@@ -61,7 +68,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             painel=painel_recebidos,
             titulo="Cartas Recebidas",
             lista_frames=self.recebidos_frames,
-            cmd_add=self._adicionar_recebido,
+            cmd_add=self._adicionar_carta,
             ofertado=False,
         )
 
@@ -118,7 +125,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             )
             slot.grid(row=linha, column=coluna, padx=5, pady=5)
             btn = ctk.CTkButton(
-                slot, text="+ Add", command=lambda i=idx: cmd_add(i)
+                slot, text="+ Add", command=lambda i=idx: cmd_add(i, ofertado=ofertado)
             )
             btn.place(relx=0.5, rely=0.5, anchor="center")
             lista_frames.append((slot, ofertado))
@@ -145,11 +152,9 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             self.lbl_diff_recebidos = lbl_diff
             self.badge_rc = lbl_diff
 
-    def _adicionar_ofertado(self, indice: int):
-        self._escolher_fonte_carta(ofertado=True, indice=indice)
+    def _adicionar_carta(self, indice:int ,ofertado: bool):
+                self._escolher_fonte_carta(ofertado=ofertado, indice=indice)
 
-    def _adicionar_recebido(self, indice: int):
-        self._escolher_fonte_carta(ofertado=False, indice=indice)
 
     def _escolher_fonte_carta(self, ofertado: bool, indice: int):
         """
@@ -163,10 +168,10 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         # Escolha o texto e a função correta
         if not ofertado:
             txt_lista = "Selecionar da Lista de Desejos"
-            cmd_lista = lambda: self._selecionar_da_lista_desejos(indice, topo)
+            cmd_lista = lambda: self._selecionar_da_lista_desejos(ofertado, indice)
         else:
             txt_lista = "Selecionar do Inventário"
-            cmd_lista = lambda: self._selecionar_do_inventario(indice, topo)
+            cmd_lista = lambda: self._selecionar_do_inventario(ofertado, indice)
 
         # Botão buscar na API
         ctk.CTkButton(
@@ -195,25 +200,47 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             master=topo,
             on_card_select=lambda carta:
                 (topo.destroy(),
-                    self._selecionar_ofertado(carta, indice, topo)
-                    if ofertado else
-                    self._selecionar_recebido(carta, indice, topo))
+                    self._selecionar_carta(ofertado, carta, indice, topo))
         ).pack(fill="both", expand=True)
 
-    def _selecionar_da_lista_desejos(self, indice: int, parent=None):
-        """
-        Aqui você abre seu modal/próprio componente que lista
-        a lista de desejos do usuário e retorna a carta selecionada.
-        """
-        return
 
-    def _selecionar_do_inventario(self, indice: int, parent=None):
-        """
-        Abre seu modal de inventário do usuário.
-        """
-        return
+    def _selecionar_do_inventario(self,ofertado, indice):
+        """Abre busca limitada às cartas do inventário."""
+        if not self.inventario:
+            messagebox.showerror(
+                "Seleção de Inventário",
+                "Seu inventário está vazio. Adicione cartas antes de simular trocas."
+            )
+            return
+        cartas = [item.get_carta() for item in self.inventario]
+        topo = ctk.CTkToplevel(self)
+        topo.title("Inventário")
+        topo.geometry("800x600")
+        LocalSearchCardsPage(
+            master=topo,
+            cards=cartas,
+            on_card_select=lambda carta: self._selecionar_carta(ofertado, carta, indice, topo)
+        ).pack(fill="both", expand=True)
 
-    def _atualizar_totais(self):
+    def _selecionar_da_lista_desejos(self, ofertado, indice):
+        """Abre busca limitada às cartas da lista de desejos."""
+        if not self.lista_desejos:
+            messagebox.showerror(
+                "Seleção de Lista de Desejos",
+                "Sua lista de desejos está vazia. Adicione cartas antes de simular trocas."
+            )
+            return
+        topo = ctk.CTkToplevel(self)
+        topo.title("Lista de Desejos")
+        topo.geometry("800x600")
+        LocalSearchCardsPage(
+            master=topo,
+            cards=self.lista_desejos,
+            on_card_select=lambda carta: self._selecionar_carta(ofertado, carta, indice, topo)
+        ).pack(fill="both", expand=True)
+
+
+    def _atualizar_totais_e_status(self):
         # Atualiza valores numéricos
         self.total_ofertados = self.simulacao.total_ofertados()
         self.total_recebidos = self.simulacao.total_recebidos()
@@ -248,6 +275,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         self.lbl_diff_ofertados.configure(text=f"{self.simulacao.equilibrio:.0f}%")
         self.lbl_diff_recebidos.configure(text=f"{(-self.simulacao.equilibrio):.0f}%")
 
+
         if abs(self.simulacao.equilibrio) > self.simulacao.limite_percentual:
             cor = "#FF6B6B"
             status = "Desequilibrada ＞﹏＜"
@@ -261,21 +289,18 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         self.badge_rc.configure(fg_color=cor)
         self.lbl_status.configure(text=status, text_color=cor_status)
 
-    def _selecionar_ofertado(self, carta:Carta, indice, topo):
+    def _selecionar_carta(self, ofertado:bool, carta:Carta, indice, topo):
         topo.destroy()  
         item = ItemTroca(carta)
         # adiciona na simulação
-        self.simulacao.adicionar_ofertado(item)
-        # renderiza no slot apropriado
-        self._renderizar_slot(ofertado=True, indice=indice, item=item)
-        self._atualizar_totais()
+        if ofertado:
+            self.simulacao.adicionar_ofertado(item)
+        else:
+            self.simulacao.adicionar_recebido(item)
 
-    def _selecionar_recebido(self, carta:Carta, indice, topo):
-        topo.destroy()
-        item = ItemTroca(carta)
-        self.simulacao.adicionar_recebido(item)
-        self._renderizar_slot(ofertado=False, indice=indice, item=item)
-        self._atualizar_totais()
+        # renderiza no slot apropriado
+        self._renderizar_slot(ofertado=ofertado, indice=indice, item=item)
+        self._atualizar_totais_e_status()
 
     def _renderizar_slot(self, ofertado: bool, indice: int, item: ItemTroca):
         """
@@ -289,7 +314,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             w.destroy()
 
         # imagem clicável (não altera função de seleção já feito)
-        img = SearchCardsPage.load_image_from_url(item.carta.imagem_url, size=(100,140))
+        img = self.load_image_from_url(item.carta.imagem_url, size=(100,140))
         if img:
             lbl_img = ctk.CTkLabel(slot_frame, image=img, text="")
             lbl_img.image = img
@@ -308,6 +333,16 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             command=lambda i=item.id, o=ofertado: self._remover_item(i, o)
         ).pack(pady=(5,0))
 
+    @staticmethod
+    def load_image_from_url(url, size=(150, 210)):
+        try:
+            response = requests.get(url, timeout=5)
+            image = Image.open(BytesIO(response.content))
+            return ctk.CTkImage(light_image=image, dark_image=image, size=size)
+        except Exception:
+            return None
+
+
     def _remover_item(self, item_id: str, ofertado: bool):
         # Remove do modelo
         if ofertado:
@@ -318,26 +353,82 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             self.simulacao.remover_recebido(item_id)
             items = self.simulacao.recebidos
             frames = self.recebidos_frames
+
         # Re-renderiza todos os slots
-        for idx, (frame_slot, total_var) in enumerate(frames):
+        for idx, (frame_slot, _) in enumerate(frames):
+            # limpa conteúdo
             for w in frame_slot.winfo_children():
                 w.destroy()
+
             if idx < len(items):
+                # renderiza a carta existente
                 self._renderizar_slot(ofertado, idx, items[idx])
             else:
+                # recria o botão de adicionar, chamando a função genérica
                 btn = ctk.CTkButton(
                     frame_slot,
                     text="+ Add",
-                    command=(lambda i=idx: self._adicionar_ofertado(i) if ofertado else self._adicionar_recebido(i))
+                    command=lambda i=idx, o=ofertado: self._adicionar_carta(i, o)
                 )
                 btn.place(relx=0.5, rely=0.5, anchor="center")
-        # atualiza totais
-        self._atualizar_totais()
+
+        # atualiza totais e status
+        self._atualizar_totais_e_status()
+
 
     def _registrar_simulacao(self):
-        # Verifica desequilíbrio
+        if not self.simulacao.ofertados or not self.simulacao.recebidos:
+            return messagebox.showerror(
+                "Simulação Inválida",
+                "Adicione pelo menos uma carta em cada lado da simulação."
+            )
+
         if self.simulacao.esta_desequilibrada():
-            # TODO: abrir modal de alerta antes de confirmar
-            return
-        # TODO: persistir simulação em backend ou local
-        return messagebox.showinfo("Simulação", "Simulação registrada com sucesso!")
+            # em vez de showwarning, chama nosso modal de confirmação
+            return self._confirmar_desequilibrio()
+
+        # se chegou aqui, está equilibrada
+        return self._finalizar_registro()
+
+    def _confirmar_desequilibrio(self):
+        modal = ctk.CTkToplevel(self)
+        modal.title("Simulação Desequilibrada")
+        modal.geometry("400x160")
+        modal.grab_set()  # torna modal: bloqueia janela-pai até fechar
+
+        # Mensagem
+        ctk.CTkLabel(
+            modal,
+            text="A simulação está desequilibrada.\nDeseja registrar mesmo assim?",
+            justify="center",
+            wraplength=360
+        ).pack(padx=20, pady=(20, 10))
+
+        # Frame para botões
+        btn_frame = ctk.CTkFrame(modal)
+        btn_frame.pack(pady=10)
+
+        # Botão Cancelar
+        ctk.CTkButton(
+            btn_frame,
+            text="Cancelar",
+            width=100,
+            command=modal.destroy
+        ).pack(side="left", padx=10)
+
+        # Botão Registrar
+        def on_registrar():
+            modal.destroy()
+            self._finalizar_registro()
+
+        ctk.CTkButton(
+            btn_frame,
+            text="Registrar",
+            width=100,
+            command=on_registrar
+        ).pack(side="left", padx=10)
+
+    def _finalizar_registro(self):
+        # aqui você faz o que for preciso para salvar/registrar a simulação
+        # por exemplo, gravar no banco ou atualizar UI
+        messagebox.showinfo("Simulação", "Simulação registrada com sucesso!")

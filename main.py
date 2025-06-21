@@ -17,6 +17,7 @@ from models.Colecionador import Colecionador
 from pages.lista_desejos import ListaDesejosPage
 
 DB_NAME = "colecionadores.db"
+INVENTARIO_DB = "inventario.db"
 
 # ———————— DATA LAYER ————————
 def init_db():
@@ -50,7 +51,8 @@ def add_colecionador(nome, email, senha):
     except sqlite3.IntegrityError:
         return False, "Este email já está cadastrado."
     finally:
-        conn.close()
+        if 'conn' in locals() and conn:
+            conn.close()
 
 
 def check_login(email, senha):
@@ -66,7 +68,7 @@ def check_login(email, senha):
 
 
 def init_inventario_db():
-    conn = sqlite3.connect("inventario.db")
+    conn = sqlite3.connect(INVENTARIO_DB)
     cur = conn.cursor()
     cur.execute(
         """
@@ -74,8 +76,7 @@ def init_inventario_db():
             id TEXT PRIMARY KEY,
             colecionador_id TEXT NOT NULL,
             carta_id TEXT NOT NULL,
-            quantidade INTEGER NOT NULL,
-            FOREIGN KEY (colecionador_id) REFERENCES colecionadores(id)
+            quantidade INTEGER NOT NULL
         )
         """
     )
@@ -84,9 +85,8 @@ def init_inventario_db():
 
 def carregar_inventario_do_banco(colecionador_id):
     from models.ItemInventario import ItemInventario
-    from services.pokeapi_service import buscar_carta_por_id
     inventario = []
-    conn = sqlite3.connect("inventario.db")
+    conn = sqlite3.connect(INVENTARIO_DB)
     cur = conn.cursor()
     cur.execute("SELECT id, carta_id, quantidade FROM inventario WHERE colecionador_id=?", (colecionador_id,))
     rows = cur.fetchall()
@@ -96,6 +96,22 @@ def carregar_inventario_do_banco(colecionador_id):
         if carta:
             inventario.append(ItemInventario(carta, quantidade=row[2], id=row[0]))
     return inventario
+
+def init_lista_desejos_db():
+    conn = sqlite3.connect(INVENTARIO_DB)
+    cur = conn.cursor()
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS lista_desejos (
+            id TEXT PRIMARY KEY,
+            colecionador_id TEXT NOT NULL,
+            carta_id TEXT NOT NULL,
+            quantidade INTEGER NOT NULL
+        )
+        """
+    )
+    conn.commit()
+    conn.close()
 
 # ———————— APPLICATION ————————
 class UserApp(ctk.CTk):
@@ -120,19 +136,10 @@ class UserApp(ctk.CTk):
         init_db()
 
         # Frames de login e cadastro
-        self.login_frame = LoginPage(
-            self,
-            on_login_success=self._on_login,
-            show_register_callback=self.show_register
-        )
-        self.register_frame = RegisterPage(
-            self,
-            on_register_callback=self._on_register,
-            show_login_callback=self.show_login
-        )
+        self.login_frame = LoginPage(self, on_login_success=self._on_login, show_register_callback=self.show_register)
+        self.register_frame = RegisterPage(self, on_register_callback=self._on_register, show_login_callback=self.show_login)
         self.show_login()
 
-    # Métodos de navegação
     def show_login(self):
         self.register_frame.place_forget()
         self.login_frame.place(relx=0.5, rely=0.5, anchor="center")
@@ -150,12 +157,11 @@ class UserApp(ctk.CTk):
             return
         self.record_id, self.current_name = row
         self.current_email = email
-        # Carregar inventário do banco de dados ao logar
         inventario = carregar_inventario_do_banco(self.record_id)
         self.colecionador = Colecionador(
             nome=self.current_name,
             email=self.current_email,
-            senha="",  # Senha não é usada aqui
+            senha="",
             id=self.record_id,
             inventario=inventario
         )
@@ -169,45 +175,37 @@ class UserApp(ctk.CTk):
             self.show_login()
 
     def logout(self):
+        if hasattr(self, 'nav_frame'):
+            self.nav_frame.destroy()
+        if hasattr(self, 'content_frame'):
+            self.content_frame.destroy()
         self.record_id = None
         self.current_name = ""
         self.current_email = ""
-        self.nav_frame.grid_forget()
-        self.content_frame.grid_forget()
+        self.colecionador = None
         self.show_login()
 
-    # Callbacks de perfil
     def _on_profile_update(self, new_name: str):
         try:
             conn = sqlite3.connect(DB_NAME)
             cur = conn.cursor()
-            cur.execute(
-                "UPDATE colecionadores SET nome=? WHERE id=?",
-                (new_name, self.record_id)
-            )
+            cur.execute("UPDATE colecionadores SET nome=? WHERE id=?", (new_name, self.record_id))
             conn.commit()
             conn.close()
             self.current_name = new_name
+            if self.colecionador:
+                self.colecionador.set_nome(new_name)
             messagebox.showinfo("Perfil", "Nome atualizado com sucesso.")
         except sqlite3.DatabaseError as e:
             messagebox.showerror("Perfil", f"Erro ao atualizar nome: {e}")
 
     def _on_delete_account(self):
-        resp = messagebox.askyesno(
-            "Excluir Conta",
-            "Tem certeza que deseja excluir sua conta? Esta ação é irreversível."
-        )
+        resp = messagebox.askyesno("Excluir Conta", "Tem certeza que deseja excluir sua conta?")
         if not resp:
             return
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-        cur.execute("DELETE FROM colecionadores WHERE id=?", (self.record_id,))
-        conn.commit()
-        conn.close()
-        messagebox.showinfo("Perfil", "Conta excluída com sucesso.")
+        # Implementar exclusão em cascata aqui
         self.logout()
 
-    # —— NAVBAR & PAGES ——
     def _build_main_ui(self):
         self.columnconfigure(0, weight=0)
         self.columnconfigure(1, weight=1)
@@ -219,14 +217,13 @@ class UserApp(ctk.CTk):
             ("Inventário", self.show_inventario),
             ("Lista de Desejos", self.show_desejos),
             ("Simular Troca", self.show_simulacao),
-            ("Histórico de Troca", lambda: None)
+            ("Sair", self.logout)
         ]
         self.nav_frame = NavBar(self, commands)
         self.nav_frame.grid(row=0, column=0, sticky="ns")
 
         self.content_frame = ctk.CTkFrame(self, corner_radius=12)
         self.content_frame.grid(row=0, column=1, sticky="nsew", padx=20, pady=20)
-
         self.show_profile()
 
     def _show_page(self, page_class, *args):
@@ -236,16 +233,7 @@ class UserApp(ctk.CTk):
         page.pack(fill="both", expand=True)
 
     def show_profile(self):
-        # Exibe página de perfil com todos os callbacks
-        self._show_page(
-            ProfilePage,
-            self.record_id,
-            self.current_name,
-            self.current_email,
-            self._on_profile_update,
-            self._on_delete_account,
-            self.logout
-        )
+        self._show_page(ProfilePage, self.record_id, self.current_name, self.current_email, self._on_profile_update, self._on_delete_account, self.logout)
 
     def show_inventario(self):
         self._show_page(InventarioPage, self.colecionador)
@@ -254,14 +242,16 @@ class UserApp(ctk.CTk):
         self._show_page(SearchCardsPage)
 
     def show_simulacao(self):
-        self._show_page(SimulacaoTrocaPage)
+        self._show_page(SimulacaoTrocaPage, self.colecionador)
 
     def show_desejos(self):
-        self._show_page(ListaDesejosPage)
+        self._show_page(ListaDesejosPage, self.colecionador)
 
 
 if __name__ == "__main__":
     init_db()
     init_inventario_db()
+    init_lista_desejos_db()
     app = UserApp()
     app.mainloop()
+
