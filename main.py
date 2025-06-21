@@ -144,14 +144,7 @@ class UserApp(ctk.CTk):
             return
         self.record_id, self.current_name = row
         self.current_email = email
-        inventario = InventarioRepository.carregar_inventario(self.record_id)
-        self.colecionador = Colecionador(
-            nome=self.current_name,
-            email=self.current_email,
-            senha="",
-            id=self.record_id,
-            inventario=inventario
-        )
+        self.colecionador = Colecionador.from_db(self.record_id)
         self.login_frame.place_forget()
         self._build_main_ui()
 

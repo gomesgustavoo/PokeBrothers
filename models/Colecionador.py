@@ -81,3 +81,24 @@ class Colecionador:
         Adiciona um ItemInventario ao final do inventário do colecionador.
         """
         self.__inventario.append(item)
+
+    @classmethod
+    def from_db(cls, colecionador_id):
+        import sqlite3
+        from services.inventario_repository import InventarioRepository
+        DB_NAME = "colecionadores.db"
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("SELECT id, nome, email, senha FROM colecionadores WHERE id=?", (colecionador_id,))
+        row = cur.fetchone()
+        conn.close()
+        if not row:
+            return None
+        inventario = InventarioRepository.carregar_inventario(colecionador_id)
+        return cls(
+            nome=row[1],
+            email=row[2],
+            senha=row[3],
+            id=row[0],
+            inventario=inventario
+        )
