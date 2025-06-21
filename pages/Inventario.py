@@ -126,7 +126,7 @@ class InventarioPage(ctk.CTkFrame):
     def _adicionar_carta_confirmada(self, carta: Carta, qtd: int):
         # Verifica se já existe a carta no inventário
         for item in self.colecionador.get_inventario():
-            if item.get_carta_id== carta.get_id():
+            if item.get_carta_id() == carta.get_id():
                 item.set_quantidade(item.get_quantidade() + qtd)
                 self._atualizar_quantidade_db(item.get_id(), item.get_quantidade())
                 break
