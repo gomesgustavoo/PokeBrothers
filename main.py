@@ -125,7 +125,15 @@ class UserApp(ctk.CTk):
         self.record_id = None
         self.current_name = ""
         self.current_email = ""
-        self.colecionador = None
+        self.colecionador = Colecionador(
+            nome=self.current_name,
+            email=self.current_email,
+            senha="",  # Senha será definida no login/cadastro
+            id=self.record_id,
+            inventario=[]
+        )
+
+        init_db()
 
         # Frames de login e cadastro
         self.login_frame = LoginPage(self, on_login_success=self._on_login, show_register_callback=self.show_register)

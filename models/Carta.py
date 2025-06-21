@@ -19,7 +19,7 @@ class Carta:
         preco_real: float,
         imagem_url: str
     ):
-        self.id = id
+        self.__id = id
         self.nome = nome
         self.tipo = tipo
         self.raridade = raridade
@@ -27,6 +27,12 @@ class Carta:
         self.preco_dolar = preco_dolar
         self.preco_real = preco_real
         self.imagem_url = imagem_url
+
+    def get_id(self):
+        return self.__id
+
+    def set_id(self, id: str):
+        self.__id = id
 
     @classmethod
     def from_api_data(cls, c: dict, dollar_to_real) -> "Carta":
