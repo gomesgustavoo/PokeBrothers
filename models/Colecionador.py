@@ -66,7 +66,7 @@ class Colecionador:
     def get_listaDesejos(self) -> List[Carta]:
         return self.__listaDesejos
 
-    def set_listaDesejos(self, listaDesejos: List[Carta]):
+    def set_listaDesejos(self, listaDesejos):
         self.__listaDesejos = listaDesejos
 
     # Getters e Setters Histórico de Trocas
@@ -82,6 +82,29 @@ class Colecionador:
         """
         self.__inventario.append(item)
 
+    def atualizar_item_inventario(self, item: ItemInventario, inventario_repo):
+        # Atualiza em memória e persiste
+        for i, it in enumerate(self.__inventario):
+            if it.get_id() == item.get_id():
+                self.__inventario[i] = item
+                break
+        inventario_repo.atualizar_item(item)
+
+    def adicionar_item_inventario_persistente(self, item: ItemInventario, inventario_repo):
+        self.__inventario.append(item)
+        inventario_repo.adicionar_item(item, self.get_id())
+
+    def remover_item_inventario(self, item: ItemInventario, inventario_repo):
+        self.__inventario = [i for i in self.__inventario if i.get_id() != item.get_id()]
+        inventario_repo.remover_item(item.get_id())
+
+    def carregar_inventario_persistente(self, inventario_repo):
+        """
+        Carrega o inventário do banco de dados usando o repositório e atualiza o inventário do colecionador.
+        """
+        inventario = inventario_repo.carregar_inventario(self.get_id())
+        self.set_inventario(inventario)
+
     @classmethod
     def from_db(cls, colecionador_id):
         import sqlite3
@@ -94,7 +117,8 @@ class Colecionador:
         conn.close()
         if not row:
             return None
-        inventario = InventarioRepo.carregar_inventario(colecionador_id)
+        repo = InventarioRepo()
+        inventario = repo.carregar_inventario(colecionador_id)
         return cls(
             nome=row[1],
             email=row[2],

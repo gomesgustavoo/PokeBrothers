@@ -1,10 +1,7 @@
-import sqlite3
-import uuid
 import customtkinter as ctk
 from tkinter import messagebox
 from models.ItemInventario import ItemInventario
 from models.Carta import Carta
-from services.pokeapi_service import buscar_carta_por_id
 from PIL import Image
 import requests
 from io import BytesIO
@@ -17,16 +14,12 @@ class InventarioPage(ctk.CTkFrame):
     """
     SLOTS_POR_LINHA = 5
     _MAX_CARTAS = 500
-    def __init__(self, master, colecionador):
+    def __init__(self, master, colecionador, inventario_repo=None):
         super().__init__(master, corner_radius=12)
         self.colecionador = colecionador
-        self._carregar_inventario()
+        self.inventario_repo = inventario_repo or InventarioRepo()
+        self.colecionador.carregar_inventario_persistente(self.inventario_repo)
         self._build()
-
-    def _carregar_inventario(self):
-        colecionador_id=self.colecionador.get_id()
-        inventario = InventarioRepo.carregar_inventario(colecionador_id)
-        self.colecionador.set_inventario(inventario)
 
     def _build(self):
         ctk.CTkLabel(self, text="Inventário", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=(10, 20))
@@ -49,7 +42,7 @@ class InventarioPage(ctk.CTkFrame):
             return
         topo = ctk.CTkToplevel(self)
         topo.title("Adicionar Carta ao Inventário")
-        topo.geometry("800x600")
+        topo.geometry("800x800")
         SearchCardsPage(
             master=topo,
             on_card_select=lambda carta: self._abrir_modal_quantidade(carta, topo)
@@ -123,25 +116,14 @@ class InventarioPage(ctk.CTkFrame):
         # Verifica se já existe a carta no inventário
         for item in self.colecionador.get_inventario():
             if self._mesma_carta(item, carta):
-                item.set_quantidade(item.get_quantidade() + qtd)
-                self._atualizar_quantidade_db(item.get_id(), item.get_quantidade())
+                nova_qtd = item.get_quantidade() + qtd
+                item.set_quantidade(nova_qtd)
+                self.colecionador.atualizar_item_inventario(item, self.inventario_repo)
                 break
         else:
             novo_item = ItemInventario(carta, quantidade=qtd)
-            self._adicionar_item_db(novo_item)
-            self.colecionador.adicionar_item_inventario(novo_item)
+            self.colecionador.adicionar_item_inventario_persistente(novo_item, self.inventario_repo)
         self._renderizar_cartas()
-
-    def _adicionar_item_db(self, item: ItemInventario):
-        InventarioRepo.adicionar_item(item, self.colecionador.get_id())
-
-    def _atualizar_quantidade_db(self, item_id, nova_quantidade):
-        # Atualiza a quantidade do item no banco usando o repositório
-        for item in self.colecionador.get_inventario():
-            if item.get_id() == item_id:
-                item.set_quantidade(nova_quantidade)
-                InventarioRepo.atualizar_item(item)
-                break
 
     def _remover_carta(self, item_id: str):
         inventario = self.colecionador.get_inventario()
@@ -149,15 +131,11 @@ class InventarioPage(ctk.CTkFrame):
             if item.get_id() == item_id:
                 if item.get_quantidade() > 1:
                     item.set_quantidade(item.get_quantidade() - 1)
-                    self._atualizar_quantidade_db(item_id, item.get_quantidade())
+                    self.colecionador.atualizar_item_inventario(item, self.inventario_repo)
                 else:
-                    inventario.remove(item)
-                    self._remover_item_db(item_id)
+                    self.colecionador.remover_item_inventario(item, self.inventario_repo)
                 break
         self._renderizar_cartas()
-
-    def _remover_item_db(self, item_id):
-        InventarioRepo.remover_item(item_id)
 
     def _renderizar_cartas(self):
         for widget in self.frame_cartas.winfo_children():
@@ -303,11 +281,7 @@ class InventarioPage(ctk.CTkFrame):
         # Remove a quantidade especificada de cartas do inventário
         if qtd < item.get_quantidade():
             item.set_quantidade(item.get_quantidade() - qtd)
-            self._atualizar_quantidade_db(item.get_id(), item.get_quantidade())
+            self.colecionador.atualizar_item_inventario(item, self.inventario_repo)
         else:
-            # Remove o item completamente se a quantidade for igual ou maior
-            inventario = self.colecionador.get_inventario()
-            if item in inventario:
-                inventario.remove(item)
-                self._remover_item_db(item.get_id())
+            self.colecionador.remover_item_inventario(item, self.inventario_repo)
         self._renderizar_cartas()
