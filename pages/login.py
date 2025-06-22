@@ -1,6 +1,21 @@
 import customtkinter as ctk
 from tkinter import messagebox
 import re
+import sqlite3
+from pathlib import Path
+
+DB_NAME = str(Path(__file__).parent.parent / "colecionadores.db")
+
+def check_login(email, senha):
+    conn = sqlite3.connect(DB_NAME)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id, nome FROM colecionadores WHERE email=? AND senha=?",
+        (email, senha)
+    )
+    row = cur.fetchone()
+    conn.close()
+    return (True, row) if row else (False, None)
 
 class LoginPage(ctk.CTkFrame):
     def __init__(self, master, on_login_success, show_register_callback):
@@ -49,7 +64,6 @@ class LoginPage(ctk.CTkFrame):
         ctk.CTkLabel(self, text="Esqueceu sua senha?").grid(row=5, column=0, columnspan=2, pady=(5,10))
     
     def _on_login(self):
-        """Lida com a tentativa de login"""
         email = self.var_email.get().strip()
         password = self.var_pwd.get().strip()
 
@@ -69,10 +83,15 @@ class LoginPage(ctk.CTkFrame):
             messagebox.showerror("Login", "A senha deve ter pelo menos 6 caracteres.")
             return
 
-        # Chama a função de callback passada pelo main
-        self.on_login_success(email, password)
-    
+        # Lógica de autenticação local
+        ok, row = check_login(email, password)
+        if not ok:
+            messagebox.showerror("Login", "Credenciais incorretas.")
+            return
+
+        # Chama o callback do app principal, passando o id do usuário
+        self.on_login_success(row[0])
+
     def clear_fields(self):
-        """Limpa os campos de entrada"""
         self.var_email.set("")
         self.var_pwd.set("")
