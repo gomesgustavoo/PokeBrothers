@@ -1,10 +1,7 @@
-import sqlite3
-import uuid
 import customtkinter as ctk
 from tkinter import messagebox
 from models.ItemInventario import ItemInventario
 from models.Carta import Carta
-from services.pokeapi_service import buscar_carta_por_id
 from PIL import Image
 import requests
 from io import BytesIO
@@ -19,22 +16,8 @@ class InventarioPage(ctk.CTkFrame):
     def __init__(self, master, colecionador):
         super().__init__(master, corner_radius=12)
         self.colecionador = colecionador
-        self._inventarioLotado = False
-        self._carregar_inventario()
+        #self.colecionador.carregar_inventario_persistente()
         self._build()
-
-    def _carregar_inventario(self):
-        conn = sqlite3.connect("inventario.db")
-        cur = conn.cursor()
-        cur.execute("SELECT id, carta_id, quantidade FROM inventario WHERE colecionador_id=?", (self.colecionador.get_id(),))
-        rows = cur.fetchall()
-        conn.close()
-        inventario = []
-        for row in rows:
-            carta = buscar_carta_por_id(row[1])
-            if carta:
-                inventario.append(ItemInventario(carta, quantidade=row[2], id=row[0]))
-        self.colecionador.set_inventario(inventario)
 
     def _build(self):
         ctk.CTkLabel(self, text="Inventário", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=(10, 20))
@@ -46,17 +29,18 @@ class InventarioPage(ctk.CTkFrame):
         self.frame_cartas.pack(fill="both", expand=True, padx=10, pady=10)
         self._renderizar_cartas()
 
+    def _inventario_esta_lotado(self):
+        total_cartas = sum(item.get_quantidade() for item in self.colecionador.get_inventario())
+        return total_cartas >= self._MAX_CARTAS
+
     def _abrir_modal_adicionar(self):
         # Verifica se o inventário está lotado ANTES de abrir a busca
-        total_cartas = sum(item.get_quantidade() for item in self.colecionador.get_inventario())
-        if total_cartas >= self._MAX_CARTAS:
-            self._inventarioLotado = True
+        if self._inventario_esta_lotado():
             messagebox.showwarning("Inventário Lotado", "Número Máximo de cartas atingido")
             return
-        self._inventarioLotado = False
         topo = ctk.CTkToplevel(self)
         topo.title("Adicionar Carta ao Inventário")
-        topo.geometry("800x600")
+        topo.geometry("800x800")
         SearchCardsPage(
             master=topo,
             on_card_select=lambda carta: self._abrir_modal_quantidade(carta, topo)
@@ -123,38 +107,21 @@ class InventarioPage(ctk.CTkFrame):
             modal.destroy()
         ctk.CTkButton(modal, text="Adicionar", command=confirmar).pack(pady=(50, 0))
 
+    def _mesma_carta(self, item: ItemInventario, carta: Carta):
+        return item.get_carta_id() == carta.get_id()
+
     def _adicionar_carta_confirmada(self, carta: Carta, qtd: int):
         # Verifica se já existe a carta no inventário
         for item in self.colecionador.get_inventario():
-            if item.get_carta_id() == carta.get_id():
-                item.set_quantidade(item.get_quantidade() + qtd)
-                self._atualizar_quantidade_db(item.get_id(), item.get_quantidade())
+            if self._mesma_carta(item, carta):
+                nova_qtd = item.get_quantidade() + qtd
+                item.set_quantidade(nova_qtd)
+                self.colecionador.atualizar_item_inventario(item)
                 break
         else:
             novo_item = ItemInventario(carta, quantidade=qtd)
-            self._adicionar_item_db(novo_item)
-            self.colecionador.adicionar_item_inventario(novo_item)
+            self.colecionador.adicionar_item_inventario_persistente(novo_item)
         self._renderizar_cartas()
-
-    def _adicionar_item_db(self, item: ItemInventario):
-        conn = sqlite3.connect("inventario.db")
-        cur = conn.cursor()
-        cur.execute(
-            "INSERT INTO inventario (id, colecionador_id, carta_id, quantidade) VALUES (?, ?, ?, ?)",
-            (item.get_id(), self.colecionador.get_id(), item.get_carta().get_id(), item.get_quantidade())
-        )
-        conn.commit()
-        conn.close()
-
-    def _atualizar_quantidade_db(self, item_id, nova_quantidade):
-        conn = sqlite3.connect("inventario.db")
-        cur = conn.cursor()
-        cur.execute(
-            "UPDATE inventario SET quantidade=? WHERE id=?",
-            (nova_quantidade, item_id)
-        )
-        conn.commit()
-        conn.close()
 
     def _remover_carta(self, item_id: str):
         inventario = self.colecionador.get_inventario()
@@ -162,19 +129,11 @@ class InventarioPage(ctk.CTkFrame):
             if item.get_id() == item_id:
                 if item.get_quantidade() > 1:
                     item.set_quantidade(item.get_quantidade() - 1)
-                    self._atualizar_quantidade_db(item_id, item.get_quantidade())
+                    self.colecionador.atualizar_item_inventario(item)
                 else:
-                    inventario.remove(item)
-                    self._remover_item_db(item_id)
+                    self.colecionador.remover_item_inventario(item)
                 break
         self._renderizar_cartas()
-
-    def _remover_item_db(self, item_id):
-        conn = sqlite3.connect("inventario.db")
-        cur = conn.cursor()
-        cur.execute("DELETE FROM inventario WHERE id=?", (item_id,))
-        conn.commit()
-        conn.close()
 
     def _renderizar_cartas(self):
         for widget in self.frame_cartas.winfo_children():
@@ -320,11 +279,7 @@ class InventarioPage(ctk.CTkFrame):
         # Remove a quantidade especificada de cartas do inventário
         if qtd < item.get_quantidade():
             item.set_quantidade(item.get_quantidade() - qtd)
-            self._atualizar_quantidade_db(item.get_id(), item.get_quantidade())
+            self.colecionador.atualizar_item_inventario(item)
         else:
-            # Remove o item completamente se a quantidade for igual ou maior
-            inventario = self.colecionador.get_inventario()
-            if item in inventario:
-                inventario.remove(item)
-                self._remover_item_db(item.get_id())
+            self.colecionador.remover_item_inventario(item)
         self._renderizar_cartas()

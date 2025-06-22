@@ -2,10 +2,6 @@ import uuid
 import sqlite3
 import customtkinter as ctk
 from tkinter import messagebox
-import requests
-
-from services.pokeapi_service import import_card_to_db, buscar_carta_por_id
-from services.dollarapi_service import ExchangeService
 from pages.navbar import NavBar
 from pages.profile import ProfilePage
 from pages.search_cards import SearchCardsPage
@@ -83,20 +79,6 @@ def init_inventario_db():
     conn.commit()
     conn.close()
 
-def carregar_inventario_do_banco(colecionador_id):
-    from models.ItemInventario import ItemInventario
-    inventario = []
-    conn = sqlite3.connect(INVENTARIO_DB)
-    cur = conn.cursor()
-    cur.execute("SELECT id, carta_id, quantidade FROM inventario WHERE colecionador_id=?", (colecionador_id,))
-    rows = cur.fetchall()
-    conn.close()
-    for row in rows:
-        carta = buscar_carta_por_id(row[1])
-        if carta:
-            inventario.append(ItemInventario(carta, quantidade=row[2], id=row[0]))
-    return inventario
-
 def init_lista_desejos_db():
     conn = sqlite3.connect(INVENTARIO_DB)
     cur = conn.cursor()
@@ -150,21 +132,19 @@ class UserApp(ctk.CTk):
         self.register_frame.place(relx=0.5, rely=0.5, anchor="center")
         self.register_frame.clear_fields()
 
-    def _on_login(self, email, password):
-        ok, row = check_login(email, password)
-        if not ok:
-            messagebox.showerror("Login", "Credenciais incorretas.")
+    def _on_login(self, user_id):
+        self.record_id = user_id
+        # Carrega nome e email do usuário
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("SELECT nome, email FROM colecionadores WHERE id=?", (self.record_id,))
+        row = cur.fetchone()
+        conn.close()
+        if not row:
+            messagebox.showerror("Login", "Erro ao carregar dados do usuário.")
             return
-        self.record_id, self.current_name = row
-        self.current_email = email
-        inventario = carregar_inventario_do_banco(self.record_id)
-        self.colecionador = Colecionador(
-            nome=self.current_name,
-            email=self.current_email,
-            senha="",
-            id=self.record_id,
-            inventario=inventario
-        )
+        self.current_name, self.current_email = row
+        self.colecionador = Colecionador.from_db(self.record_id)
         self.login_frame.place_forget()
         self._build_main_ui()
 
