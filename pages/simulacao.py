@@ -218,7 +218,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         topo.geometry("800x600")
         LocalSearchCardsPage(
             master=topo,
-            cards=cartas,
+            cartas=cartas,
             on_card_select=lambda carta: self._selecionar_carta(ofertado, carta, indice, topo)
         ).pack(fill="both", expand=True)
 
@@ -235,7 +235,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         topo.geometry("800x600")
         LocalSearchCardsPage(
             master=topo,
-            cards=self.lista_desejos,
+            cartas=self.lista_desejos,
             on_card_select=lambda carta: self._selecionar_carta(ofertado, carta, indice, topo)
         ).pack(fill="both", expand=True)
 
