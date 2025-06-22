@@ -80,9 +80,13 @@ class ListaDesejosPage(ctk.CTkFrame):
         if len(self.lista_de_desejos) >= self.MAX_CARTAS:
             messagebox.showerror("Limite atingido", f"Sua lista de desejos já contém {self.MAX_CARTAS} cartas.")
             return
+        # 2) Duplicata
+        if any(c.get_id() == carta.get_id() for c in self.cartas):
+            messagebox.showerror(
+                "Carta repetida",
+                "Essa carta já está na lista!"
+            )
 
-        if any(item.get_carta().id == carta.id for item in self.lista_de_desejos):
-            messagebox.showerror("Carta repetida", "Essa carta já está na lista!")
             return
 
         novo_item = ItemListadeDesejos(carta, quantidade=1)
