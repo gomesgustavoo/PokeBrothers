@@ -6,7 +6,6 @@ from PIL import Image
 import requests
 from io import BytesIO
 from pages.search_cards import SearchCardsPage
-from services.inventario_repo import InventarioRepo
 
 class InventarioPage(ctk.CTkFrame):
     """
@@ -14,11 +13,10 @@ class InventarioPage(ctk.CTkFrame):
     """
     SLOTS_POR_LINHA = 5
     _MAX_CARTAS = 500
-    def __init__(self, master, colecionador, inventario_repo=None):
+    def __init__(self, master, colecionador):
         super().__init__(master, corner_radius=12)
         self.colecionador = colecionador
-        self.inventario_repo = inventario_repo or InventarioRepo()
-        self.colecionador.carregar_inventario_persistente(self.inventario_repo)
+        #self.colecionador.carregar_inventario_persistente()
         self._build()
 
     def _build(self):
@@ -118,11 +116,11 @@ class InventarioPage(ctk.CTkFrame):
             if self._mesma_carta(item, carta):
                 nova_qtd = item.get_quantidade() + qtd
                 item.set_quantidade(nova_qtd)
-                self.colecionador.atualizar_item_inventario(item, self.inventario_repo)
+                self.colecionador.atualizar_item_inventario(item)
                 break
         else:
             novo_item = ItemInventario(carta, quantidade=qtd)
-            self.colecionador.adicionar_item_inventario_persistente(novo_item, self.inventario_repo)
+            self.colecionador.adicionar_item_inventario_persistente(novo_item)
         self._renderizar_cartas()
 
     def _remover_carta(self, item_id: str):
@@ -131,9 +129,9 @@ class InventarioPage(ctk.CTkFrame):
             if item.get_id() == item_id:
                 if item.get_quantidade() > 1:
                     item.set_quantidade(item.get_quantidade() - 1)
-                    self.colecionador.atualizar_item_inventario(item, self.inventario_repo)
+                    self.colecionador.atualizar_item_inventario(item)
                 else:
-                    self.colecionador.remover_item_inventario(item, self.inventario_repo)
+                    self.colecionador.remover_item_inventario(item)
                 break
         self._renderizar_cartas()
 
@@ -281,7 +279,7 @@ class InventarioPage(ctk.CTkFrame):
         # Remove a quantidade especificada de cartas do inventário
         if qtd < item.get_quantidade():
             item.set_quantidade(item.get_quantidade() - qtd)
-            self.colecionador.atualizar_item_inventario(item, self.inventario_repo)
+            self.colecionador.atualizar_item_inventario(item)
         else:
-            self.colecionador.remover_item_inventario(item, self.inventario_repo)
+            self.colecionador.remover_item_inventario(item)
         self._renderizar_cartas()
