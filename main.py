@@ -2,10 +2,6 @@ import uuid
 import sqlite3
 import customtkinter as ctk
 from tkinter import messagebox
-import requests
-
-from services.pokeapi_service import import_card_to_db, buscar_carta_por_id
-from services.dollarapi_service import ExchangeService
 from pages.navbar import NavBar
 from pages.profile import ProfilePage
 from pages.search_cards import SearchCardsPage
@@ -15,7 +11,6 @@ from pages.Inventario import InventarioPage
 from pages.simulacao import SimulacaoTrocaPage
 from models.Colecionador import Colecionador
 from pages.lista_desejos import ListaDesejosPage
-from services.inventario_repo import InventarioRepo
 
 DB_NAME = "colecionadores.db"
 INVENTARIO_DB = "inventario.db"
