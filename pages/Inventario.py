@@ -16,6 +16,7 @@ class InventarioPage(ctk.CTkFrame):
     def __init__(self, master, colecionador):
         super().__init__(master, corner_radius=12)
         self.colecionador = colecionador
+        self._image_cache = {}  # Cache de imagens por URL
         #self.colecionador.carregar_inventario_persistente()
         self._build()
 
@@ -207,12 +208,17 @@ class InventarioPage(ctk.CTkFrame):
         frame.bind("<Button-1>", abrir_modal_visualizacao)
         lbl_img.bind("<Button-1>", abrir_modal_visualizacao)
 
-    @staticmethod
-    def _carregar_imagem_url(url, size=(90, 126)):
+    def _carregar_imagem_url(self, url, size=(90, 126)):
+        if not url:
+            return None
+        if url in self._image_cache:
+            return self._image_cache[url]
         try:
             response = requests.get(url, timeout=5)
             image = Image.open(BytesIO(response.content))
-            return ctk.CTkImage(light_image=image, dark_image=image, size=size)
+            ctk_image = ctk.CTkImage(light_image=image, dark_image=image, size=size)
+            self._image_cache[url] = ctk_image  # Salva no cache
+            return ctk_image
         except Exception:
             return None
 
