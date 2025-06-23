@@ -2,6 +2,7 @@ from uuid import uuid4
 from typing import List
 from models.ItemInventario import ItemInventario
 from models.Carta import Carta
+from models.ItemListadeDesejos import ItemListadeDesejos
 # from models.Troca import Troca  # Descomente se existir a classe Troca
 
 class Colecionador:
@@ -18,9 +19,11 @@ class Colecionador:
         inventario: List[ItemInventario] = None,
         listaDesejos: List[Carta] = None,
         historicoTrocas: list = None,  # Troque para List[Troca] se a classe Troca existir
-        inventario_repo=None
+        inventario_repo=None,
+        listaDesejos_repo=None
     ):
         from services.inventario_repo import InventarioRepo
+        from services.lista_desejos_repo import ListaDesejosRepo
         self.__id = id if id is not None else str(uuid4())
         self.__nome = nome
         self.__email = email
@@ -29,6 +32,7 @@ class Colecionador:
         self.__listaDesejos = listaDesejos if listaDesejos is not None else []
         self.__historicoTrocas = historicoTrocas if historicoTrocas is not None else []
         self.inventario_repo = inventario_repo or InventarioRepo()
+        self.listaDesejos_repo = listaDesejos_repo or ListaDesejosRepo()  # Use o mesmo repo ou crie um específico
 
     # Getters e Setters ID
     def get_id(self) -> str:
@@ -60,13 +64,16 @@ class Colecionador:
 
     # Getters e Setters Inventário
     def get_inventario(self) -> List[ItemInventario]:
+        print("get_inventario", self.__inventario)
         return self.__inventario
 
     def set_inventario(self, inventario: List[ItemInventario]):
+        print
         self.__inventario = inventario
 
     # Getters e Setters Lista de Desejos
     def get_listaDesejos(self) -> List[Carta]:
+        print("get_listaDesejos", self.__listaDesejos)
         return self.__listaDesejos
 
     def set_listaDesejos(self, listaDesejos):
@@ -104,6 +111,45 @@ class Colecionador:
     def carregar_inventario_persistente(self):
         inventario = self.inventario_repo.carregar_inventario(self.get_id())
         self.set_inventario(inventario)
+
+    def get_lista_desejos(self) -> List[ItemListadeDesejos]:
+        return self.__listaDesejos
+
+    def set_lista_desejos(self, lista: List[ItemListadeDesejos]):
+        self.__listaDesejos = lista
+
+    def adicionar_item_lista_desejos_persistente(self, item: ItemListadeDesejos):
+        """
+        Adiciona um ItemListadeDesejos à lista e persiste no banco.
+        """
+        self.__listaDesejos.append(item)
+        self.listaDesejos_repo.adicionar_item(item, self.get_id())
+
+    def atualizar_item_lista_desejos(self, item: ItemListadeDesejos):
+        """
+        Atualiza em memória e persiste.
+        """
+        for i, it in enumerate(self.__listaDesejos):
+            if it.get_id() == item.get_id():
+                self.__listaDesejos[i] = item
+                break
+        self.listaDesejos_repo.atualizar_item(item)
+
+    def remover_item_lista_desejos(self, item: ItemListadeDesejos):
+        """
+        Remove da lista em memória e do banco.
+        """
+        self.__listaDesejos = [
+            it for it in self.__listaDesejos if it.get_id() != item.get_id()
+        ]
+        self.listaDesejos_repo.remover_item(item.get_id())
+
+    def carregar_lista_desejos_persistente(self):
+        """
+        Carrega do banco a lista de desejos associada a este colecionador.
+        """
+        lista = self.listaDesejos_repo.carregar_lista(self.get_id())
+        self.set_listaDesejos(lista)
 
     @classmethod
     def from_db(cls, colecionador_id):

@@ -27,6 +27,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         super().__init__(master, corner_radius=12)
         self.inventario = colecionador.get_inventario() or []
         self.lista_desejos = colecionador.get_listaDesejos() or []
+        print(f"Inventário: {self.inventario} cartas, Lista de Desejos: {self.lista_desejos} cartas")
         self.simulacao = SimulacaoTroca(limite_percentual=10.0)
         self.ofertados_frames = []
         self.recebidos_frames = []
@@ -230,12 +231,13 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
                 "Sua lista de desejos está vazia. Adicione cartas antes de simular trocas."
             )
             return
+        cartas = [item.get_carta() for item in self.lista_desejos]
         topo = ctk.CTkToplevel(self)
         topo.title("Lista de Desejos")
         topo.geometry("800x600")
         LocalSearchCardsPage(
             master=topo,
-            cartas=self.lista_desejos,
+            cartas=cartas,
             on_card_select=lambda carta: self._selecionar_carta(ofertado, carta, indice, topo)
         ).pack(fill="both", expand=True)
 

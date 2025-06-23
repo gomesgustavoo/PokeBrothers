@@ -87,8 +87,7 @@ def init_lista_desejos_db():
         CREATE TABLE IF NOT EXISTS lista_desejos (
             id TEXT PRIMARY KEY,
             colecionador_id TEXT NOT NULL,
-            carta_id TEXT NOT NULL,
-            quantidade INTEGER NOT NULL
+            carta_id TEXT NOT NULL
         )
         """
     )
