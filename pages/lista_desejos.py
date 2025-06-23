@@ -81,7 +81,7 @@ class ListaDesejosPage(ctk.CTkFrame):
             messagebox.showerror("Limite atingido", f"Sua lista de desejos já contém {self.MAX_CARTAS} cartas.")
             return
         # 2) Duplicata
-        if any(c.get_id() == carta.get_id() for c in self.cartas):
+        if any(c.get_id() == carta.get_id() for c in self.lista_de_desejos):
             messagebox.showerror(
                 "Carta repetida",
                 "Essa carta já está na lista!"
@@ -174,7 +174,7 @@ class ListaDesejosPage(ctk.CTkFrame):
         cur = conn.cursor()
         cur.execute(
             "INSERT INTO lista_desejos (id, colecionador_id, carta_id, quantidade) VALUES (?, ?, ?, ?)",
-            (item.get_id(), self.colecionador.get_id(), item.get_carta().id, item.get_quantidade())
+            (item.get_id(), self.colecionador.get_id(), item.get_carta().get_id(), item.get_quantidade())
         )
         conn.commit()
         conn.close()
