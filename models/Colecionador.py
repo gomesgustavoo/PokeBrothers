@@ -169,4 +169,5 @@ class Colecionador:
             id=row[0]
         )
         colecionador.carregar_inventario_persistente()
+        colecionador.carregar_lista_desejos_persistente()
         return colecionador
