@@ -51,7 +51,7 @@ class SimulacaoTroca:
         """
         Remove um item dos ofertados pelo seu ID e atualiza equilíbrio.
         """
-        self._ofertados = [i for i in self._ofertados if i.id != item_id]
+        self._ofertados = [i for i in self._ofertados if i.get_id() != item_id]
         self._recalcular_equilibrio()
 
     def adicionar_recebido(self, item: ItemTroca):
@@ -65,7 +65,7 @@ class SimulacaoTroca:
         """
         Remove um item dos recebidos pelo seu ID e atualiza equilíbrio.
         """
-        self._recebidos = [i for i in self._recebidos if i.id != item_id]
+        self._recebidos = [i for i in self._recebidos if i.get_id() != item_id]
         self._recalcular_equilibrio()
 
     def total_ofertados(self) -> float:

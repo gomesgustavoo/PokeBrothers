@@ -314,12 +314,12 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             w.destroy()
 
         # imagem clicável (não altera função de seleção já feito)
-        img = self.load_image_from_url(item.carta.get_imagem_url(), size=(100,140))
+        img = self.load_image_from_url(item.get_carta().get_imagem_url(), size=(100,140))
         if img:
             lbl_img = ctk.CTkLabel(slot_frame, image=img, text="")
             lbl_img.image = img
             lbl_img.pack(pady=(5,0))
-        preco_formatado = f"R${item.carta.get_preco_real():,.2f}"
+        preco_formatado = f"R${item.get_carta().get_preco_real():,.2f}"
         ctk.CTkLabel(
             slot_frame,
             text=preco_formatado
@@ -329,7 +329,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             slot_frame,
             text="X",
             fg_color="red",
-            command=lambda i=item.id, o=ofertado: self._remover_item(i, o)
+            command=lambda i=item.get_id(), o=ofertado: self._remover_item(i, o)
         ).pack(pady=(5,0))
 
     @staticmethod
@@ -393,6 +393,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         modal = ctk.CTkToplevel(self)
         modal.title("Simulação Desequilibrada")
         modal.geometry("400x160")
+        modal.wait_visibility()  # Garante que a janela está visível antes do grab_set
         modal.grab_set()  # torna modal: bloqueia janela-pai até fechar
 
         # Mensagem
