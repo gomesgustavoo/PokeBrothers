@@ -15,4 +15,4 @@ class ItemTroca:
         """
         Retorna o preço total deste item (preço da carta em reais * quantidade).
         """
-        return self.carta.preco_real * self.quantidade
+        return self.carta.get_preco_real() * self.quantidade

@@ -171,7 +171,7 @@ class SearchCardsPage(ctk.CTkFrame):
         card_frame.grid(row=row, column=column, padx=10, pady=10, sticky="n")
 
         # Imagem da carta
-        img = SearchCardsPage.load_image_from_url(card.imagem_url, size=(120, 168))
+        img = SearchCardsPage.load_image_from_url(card.get_imagem_url(), size=(120, 168))
         if img:
             img_label = ctk.CTkLabel(card_frame, image=img, text="")
             img_label.image = img
@@ -194,30 +194,30 @@ class SearchCardsPage(ctk.CTkFrame):
 
         ctk.CTkLabel(
             info_frame,
-            text=card.nome,
+            text=card.get_nome(),
             font=ctk.CTkFont(size=14, weight="bold"),
             anchor="w"
         ).pack(anchor="w")
         ctk.CTkLabel(
             info_frame,
-            text=f'Preço de mercado: R${card.preco_real:.2f}',
+            text=f'Preço de mercado: R${card.get_preco_real():.2f}',
             font=ctk.CTkFont(size=12),
             anchor="w"
         ).pack(anchor="w")
         ctk.CTkLabel(
             info_frame,
-            text=f'Coleção: {card.colecao}',
+            text=f'Coleção: {card.get_colecao()}',
             font=ctk.CTkFont(size=12),
             anchor="w"
         ).pack(anchor="w")
         ctk.CTkLabel(
             info_frame,
-            text=f'Raridade: {card.raridade or "Desconhecida"}',
+            text=f'Raridade: {card.get_raridade() or "Desconhecida"}',
             font=ctk.CTkFont(size=12),
             anchor="w"
         ).pack(anchor="w")
         # Tag de tipo com cor
-        tipo = card.tipo.split(",")[0] if card.tipo else "Desconhecido"
+        tipo = card.get_tipo().split(",")[0] if card.get_tipo() else "Desconhecido"
         cor = TIPO_CORES.get(tipo, "#666666")  # cor padrão se não mapeado
 
         ctk.CTkLabel(

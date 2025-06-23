@@ -15,10 +15,16 @@ class InventarioPage(ctk.CTkFrame):
     _MAX_CARTAS = 500
     def __init__(self, master, colecionador):
         super().__init__(master, corner_radius=12)
-        self.colecionador = colecionador
-        self._image_cache = {}  # Cache de imagens por URL
-        #self.colecionador.carregar_inventario_persistente()
+        self.__colecionador = colecionador
+        self.__image_cache = {}  # Cache de imagens por URL
+        #self.__colecionador.carregar_inventario_persistente()
         self._build()
+
+    def get_colecionador(self):
+        return self.__colecionador
+
+    def get_image_cache(self):
+        return self.__image_cache
 
     def _build(self):
         ctk.CTkLabel(self, text="Inventário", font=ctk.CTkFont(size=20, weight="bold")).pack(pady=(10, 20))
@@ -31,7 +37,7 @@ class InventarioPage(ctk.CTkFrame):
         self._renderizar_cartas()
 
     def _inventario_esta_lotado(self):
-        total_cartas = sum(item.get_quantidade() for item in self.colecionador.get_inventario())
+        total_cartas = sum(item.get_quantidade() for item in self.__colecionador.get_inventario())
         return total_cartas >= self._MAX_CARTAS
 
     def _abrir_modal_adicionar(self):
@@ -50,12 +56,12 @@ class InventarioPage(ctk.CTkFrame):
     def _abrir_modal_quantidade(self, carta: Carta, topo_search):
         topo_search.destroy()
         # Calcula o máximo que pode adicionar sem ultrapassar o limite
-        total_cartas = sum(item.get_quantidade() for item in self.colecionador.get_inventario())
+        total_cartas = sum(item.get_quantidade() for item in self.__colecionador.get_inventario())
         max_adicionar = self._MAX_CARTAS - total_cartas
         modal = ctk.CTkToplevel(self)
         modal.title("Quantidade de Cartas")
         modal.geometry("300x180")
-        ctk.CTkLabel(modal, text=f"Adicionar '{carta.nome}' ao inventário", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=(15, 10))
+        ctk.CTkLabel(modal, text=f"Adicionar '{carta.get_nome()}' ao inventário", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=(15, 10))
         frame = ctk.CTkFrame(modal)
         frame.pack(pady=10)
         quantidade = ctk.IntVar(value=1)
@@ -113,26 +119,26 @@ class InventarioPage(ctk.CTkFrame):
 
     def _adicionar_carta_confirmada(self, carta: Carta, qtd: int):
         # Verifica se já existe a carta no inventário
-        for item in self.colecionador.get_inventario():
+        for item in self.__colecionador.get_inventario():
             if self._mesma_carta(item, carta):
                 nova_qtd = item.get_quantidade() + qtd
                 item.set_quantidade(nova_qtd)
-                self.colecionador.atualizar_item_inventario(item)
+                self.__colecionador.atualizar_item_inventario(item)
                 break
         else:
             novo_item = ItemInventario(carta, quantidade=qtd)
-            self.colecionador.adicionar_item_inventario_persistente(novo_item)
+            self.__colecionador.adicionar_item_inventario_persistente(novo_item)
         self._renderizar_cartas()
 
     def _remover_carta(self, item_id: str):
-        inventario = self.colecionador.get_inventario()
+        inventario = self.__colecionador.get_inventario()
         for item in inventario:
             if item.get_id() == item_id:
                 if item.get_quantidade() > 1:
                     item.set_quantidade(item.get_quantidade() - 1)
-                    self.colecionador.atualizar_item_inventario(item)
+                    self.__colecionador.atualizar_item_inventario(item)
                 else:
-                    self.colecionador.remover_item_inventario(item)
+                    self.__colecionador.remover_item_inventario(item)
                 break
         self._renderizar_cartas()
 
@@ -140,7 +146,7 @@ class InventarioPage(ctk.CTkFrame):
         for widget in self.frame_cartas.winfo_children():
             widget.destroy()
 
-        inventario = self.colecionador.get_inventario()
+        inventario = self.__colecionador.get_inventario()
         if not inventario:
             ctk.CTkLabel(self.frame_cartas, text="Nenhuma carta no inventário.").pack(pady=20)
             return
@@ -156,7 +162,7 @@ class InventarioPage(ctk.CTkFrame):
         frame.grid(row=row, column=col, padx=10, pady=10, sticky="n")
 
         # Imagem da carta
-        img = self._carregar_imagem_url(carta.imagem_url)
+        img = self._carregar_imagem_url(carta.get_imagem_url())
         if img:
             lbl_img = ctk.CTkLabel(frame, image=img, text="")
             lbl_img.image = img
@@ -166,8 +172,8 @@ class InventarioPage(ctk.CTkFrame):
             lbl_img.pack(pady=(5, 0))
 
         # Nome, preço e quantidade
-        ctk.CTkLabel(frame, text=carta.nome, font=ctk.CTkFont(size=13, weight="bold")).pack()
-        ctk.CTkLabel(frame, text=f"Preço: US$ {carta.preco_dolar:.2f} / R$ {carta.preco_real:.2f}", font=ctk.CTkFont(size=12)).pack()
+        ctk.CTkLabel(frame, text=carta.get_nome(), font=ctk.CTkFont(size=13, weight="bold")).pack()
+        ctk.CTkLabel(frame, text=f"Preço: US$ {carta.get_preco_dolar():.2f} / R$ {carta.get_preco_real():.2f}", font=ctk.CTkFont(size=12)).pack()
         ctk.CTkLabel(frame, text=f"Qtd: {item.get_quantidade()}").pack()
 
         # Botão de exclusão (ícone pequeno)
@@ -186,22 +192,22 @@ class InventarioPage(ctk.CTkFrame):
         # Modal de visualização ao clicar na carta
         def abrir_modal_visualizacao(event=None):
             modal = ctk.CTkToplevel(self)
-            modal.title(f"Visualizar Carta: {carta.nome}")
+            modal.title(f"Visualizar Carta: {carta.get_nome()}")
             modal.geometry("350x500")
             # Imagem grande
-            img_grande = self._carregar_imagem_url(carta.imagem_url, size=(200, 280))
+            img_grande = self._carregar_imagem_url(carta.get_imagem_url(), size=(200, 280))
             if img_grande:
                 ctk.CTkLabel(modal, image=img_grande, text="").pack(pady=(20, 10))
             else:
                 ctk.CTkLabel(modal, text="[imagem]").pack(pady=(20, 10))
             # Nome
-            ctk.CTkLabel(modal, text=carta.nome, font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(0, 5))
+            ctk.CTkLabel(modal, text=carta.get_nome(), font=ctk.CTkFont(size=18, weight="bold")).pack(pady=(0, 5))
             # Tipo, raridade, coleção
-            ctk.CTkLabel(modal, text=f"Tipo: {carta.tipo}").pack()
-            ctk.CTkLabel(modal, text=f"Raridade: {carta.raridade}").pack()
-            ctk.CTkLabel(modal, text=f"Coleção: {carta.colecao}").pack()
+            ctk.CTkLabel(modal, text=f"Tipo: {carta.get_tipo()}").pack()
+            ctk.CTkLabel(modal, text=f"Raridade: {carta.get_raridade()}").pack()
+            ctk.CTkLabel(modal, text=f"Coleção: {carta.get_colecao()}").pack()
             # Preço
-            ctk.CTkLabel(modal, text=f"Preço: US$ {carta.preco_dolar:.2f} / R$ {carta.preco_real:.2f}").pack(pady=(10, 0))
+            ctk.CTkLabel(modal, text=f"Preço: US$ {carta.get_preco_dolar():.2f} / R$ {carta.get_preco_real():.2f}").pack(pady=(10, 0))
             # Fechar
             ctk.CTkButton(modal, text="Fechar", command=modal.destroy).pack(pady=(30, 0))
         # Bind para abrir modal ao clicar no frame ou imagem
@@ -211,13 +217,13 @@ class InventarioPage(ctk.CTkFrame):
     def _carregar_imagem_url(self, url, size=(90, 126)):
         if not url:
             return None
-        if url in self._image_cache:
-            return self._image_cache[url]
+        if url in self.__image_cache:
+            return self.__image_cache[url]
         try:
             response = requests.get(url, timeout=5)
             image = Image.open(BytesIO(response.content))
             ctk_image = ctk.CTkImage(light_image=image, dark_image=image, size=size)
-            self._image_cache[url] = ctk_image  # Salva no cache
+            self.__image_cache[url] = ctk_image  # Salva no cache
             return ctk_image
         except Exception:
             return None
@@ -228,7 +234,7 @@ class InventarioPage(ctk.CTkFrame):
         modal = ctk.CTkToplevel(self)
         modal.title("Remover Quantidade de Cartas")
         modal.geometry("300x180")
-        ctk.CTkLabel(modal, text=f"Remover '{item.get_carta().nome}' do inventário", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=(15, 10))
+        ctk.CTkLabel(modal, text=f"Remover '{item.get_carta().get_nome()}' do inventário", font=ctk.CTkFont(size=14, weight="bold")).pack(pady=(15, 10))
         frame = ctk.CTkFrame(modal)
         frame.pack(pady=10)
         quantidade = ctk.IntVar(value=1)
@@ -285,7 +291,7 @@ class InventarioPage(ctk.CTkFrame):
         # Remove a quantidade especificada de cartas do inventário
         if qtd < item.get_quantidade():
             item.set_quantidade(item.get_quantidade() - qtd)
-            self.colecionador.atualizar_item_inventario(item)
+            self.__colecionador.atualizar_item_inventario(item)
         else:
-            self.colecionador.remover_item_inventario(item)
+            self.__colecionador.remover_item_inventario(item)
         self._renderizar_cartas()

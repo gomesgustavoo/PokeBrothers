@@ -127,10 +127,9 @@ class ListaDesejosPage(ctk.CTkFrame):
         carta = item.get_carta()
         card_frame = ctk.CTkFrame(parent, corner_radius=8, fg_color="#1a1a1a")
         
-        # Assume-se que a classe SearchCardsPage tem um método estático `load_image_from_url`
         img_label = ctk.CTkLabel(card_frame, text="")
         if hasattr(SearchCardsPage, 'load_image_from_url'):
-            img = SearchCardsPage.load_image_from_url(carta.imagem_url, size=self.TAM_SLOT)
+            img = SearchCardsPage.load_image_from_url(carta.get_imagem_url(), size=self.TAM_SLOT)
             if img:
                 img_label.configure(image=img)
             else:
@@ -140,10 +139,10 @@ class ListaDesejosPage(ctk.CTkFrame):
         
         img_label.pack(padx=6, pady=6)
 
-        ctk.CTkLabel(card_frame, text=carta.nome, font=ctk.CTkFont(size=13, weight="bold"), wraplength=140).pack(padx=6, pady=(0,2))
+        ctk.CTkLabel(card_frame, text=carta.get_nome(), font=ctk.CTkFont(size=13, weight="bold"), wraplength=140).pack(padx=6, pady=(0,2))
         
-        if hasattr(carta, 'preco_real') and carta.preco_real is not None:
-             ctk.CTkLabel(card_frame, text=f"R${carta.preco_real:,.2f}", font=ctk.CTkFont(size=12)).pack(padx=6, pady=(0,4))
+        if hasattr(carta, 'get_preco_real') and carta.get_preco_real() is not None:
+             ctk.CTkLabel(card_frame, text=f"R${carta.get_preco_real():,.2f}", font=ctk.CTkFont(size=12)).pack(padx=6, pady=(0,4))
 
         ctk.CTkButton(
             card_frame, text="Remover", height=28, fg_color="#FF3B3B", hover_color="#E32B2B",

@@ -314,13 +314,12 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             w.destroy()
 
         # imagem clicável (não altera função de seleção já feito)
-        img = self.load_image_from_url(item.carta.imagem_url, size=(100,140))
+        img = self.load_image_from_url(item.carta.get_imagem_url(), size=(100,140))
         if img:
             lbl_img = ctk.CTkLabel(slot_frame, image=img, text="")
             lbl_img.image = img
             lbl_img.pack(pady=(5,0))
-        # preco
-        preco_formatado = f"R${item.carta.preco_real:,.2f}"
+        preco_formatado = f"R${item.carta.get_preco_real():,.2f}"
         ctk.CTkLabel(
             slot_frame,
             text=preco_formatado
