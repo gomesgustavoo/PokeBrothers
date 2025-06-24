@@ -208,11 +208,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
     def _selecionar_do_inventario(self,ofertado, indice):
         """Abre busca limitada às cartas do inventário."""
         if not self.inventario:
-            messagebox.showerror(
-                "Seleção de Inventário",
-                "Seu inventário está vazio. Adicione cartas antes de simular trocas."
-            )
-            return
+            return self._mostra_erro_inventario()
         cartas = [item.get_carta() for item in self.inventario]
         topo = ctk.CTkToplevel(self)
         topo.title("Inventário")
@@ -223,14 +219,16 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             on_card_select=lambda carta: self._selecionar_carta(ofertado, carta, indice, topo)
         ).pack(fill="both", expand=True)
 
+    def _mostra_erro_inventario(self):
+        messagebox.showerror(
+                "Seleção de Inventário",
+                "Seu inventário está vazio. Adicione cartas antes de simular trocas."
+            )
+
     def _selecionar_da_lista_desejos(self, ofertado, indice):
         """Abre busca limitada às cartas da lista de desejos."""
         if not self.lista_desejos:
-            messagebox.showerror(
-                "Seleção de Lista de Desejos",
-                "Sua lista de desejos está vazia. Adicione cartas antes de simular trocas."
-            )
-            return
+            return self._mostra_erro_lista_desejos()
         cartas = [item.get_carta() for item in self.lista_desejos]
         topo = ctk.CTkToplevel(self)
         topo.title("Lista de Desejos")
@@ -240,6 +238,13 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
             cartas=cartas,
             on_card_select=lambda carta: self._selecionar_carta(ofertado, carta, indice, topo)
         ).pack(fill="both", expand=True)
+
+
+    def _mostra_erro_lista_desejos(self):
+        essagebox.showerror(
+                "Seleção de Lista de Desejos",
+                "Sua lista de desejos está vazia. Adicione cartas antes de simular trocas."
+            )
 
 
     def _atualizar_totais_e_status(self):
