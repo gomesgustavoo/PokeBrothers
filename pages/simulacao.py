@@ -240,7 +240,7 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
 
 
     def _mostra_erro_lista_desejos(self):
-        essagebox.showerror(
+        messagebox.showerror(
                 "Seleção de Lista de Desejos",
                 "Sua lista de desejos está vazia. Adicione cartas antes de simular trocas."
             )
