@@ -71,6 +71,10 @@ class ListaDesejosPage(ctk.CTkFrame):
             )
         ).pack(fill="both", expand=True)
 
+    def carta_repetida(self, carta: Carta) -> bool:
+        desejos = self.colecionador.get_listaDesejos()
+        return any(item.get_carta().get_id() == carta.get_id() for item in desejos)
+
     def _adicionar_carta(self, carta: Carta):
         desejos = self.colecionador.get_listaDesejos()
         if len(desejos) >= self.MAX_CARTAS:
@@ -80,7 +84,7 @@ class ListaDesejosPage(ctk.CTkFrame):
             )
             return
 
-        if any(item.get_carta().get_id() == carta.get_id() for item in desejos):
+        if self.carta_repetida(carta):
             messagebox.showerror(
                 "Carta repetida",
                 "Essa carta já está na lista!"
