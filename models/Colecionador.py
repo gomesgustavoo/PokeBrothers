@@ -64,16 +64,13 @@ class Colecionador:
 
     # Getters e Setters Inventário
     def get_inventario(self) -> List[ItemInventario]:
-        print("get_inventario", self.__inventario)
         return self.__inventario
 
     def set_inventario(self, inventario: List[ItemInventario]):
-        print
         self.__inventario = inventario
 
     # Getters e Setters Lista de Desejos
     def get_listaDesejos(self) -> List[Carta]:
-        print("get_listaDesejos", self.__listaDesejos)
         return self.__listaDesejos
 
     def set_listaDesejos(self, listaDesejos):

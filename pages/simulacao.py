@@ -27,7 +27,6 @@ class SimulacaoTrocaPage(ctk.CTkFrame):
         super().__init__(master, corner_radius=12)
         self.inventario = colecionador.get_inventario() or []
         self.lista_desejos = colecionador.get_listaDesejos() or []
-        print(f"Inventário: {self.inventario} cartas, Lista de Desejos: {self.lista_desejos} cartas")
         self.simulacao = SimulacaoTroca(limite_percentual=10.0)
         self.ofertados_frames = []
         self.recebidos_frames = []

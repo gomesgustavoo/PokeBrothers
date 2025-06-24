@@ -85,7 +85,6 @@ class LocalSearchCardsPage(ctk.CTkFrame):
             return None
 
     def create_card_widget(self, parent, card:Carta, row, column):
-        print(card)
         # Card Frame geral
         card_frame = ctk.CTkFrame(parent, corner_radius=12, fg_color="#1a1a1a")
         card_frame.grid(row=row, column=column, padx=10, pady=10, sticky="n")
