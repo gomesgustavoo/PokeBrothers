@@ -57,7 +57,7 @@ class LocalSearchCardsPage(ctk.CTkFrame):
     def on_pesquisa(self):
         term = self.var_search.get().strip().lower()
         if term:
-            filtered = [c for c in self.cartas if term in c.nome.lower()]
+            filtered = [c for c in self.cartas if term in c.get_nome().lower()]
         else:
             filtered = list(self.cartas)
         self._renderiza_cartas(filtered)

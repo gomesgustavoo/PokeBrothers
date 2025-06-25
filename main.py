@@ -182,8 +182,26 @@ class UserApp(ctk.CTk):
         resp = messagebox.askyesno("Excluir Conta", "Tem certeza que deseja excluir sua conta?")
         if not resp:
             return
-        # Implementar exclusão em cascata aqui
-        self.logout()
+        try:
+            # Remove inventário e lista de desejos do usuário
+            conn_inv = sqlite3.connect(INVENTARIO_DB)
+            cur_inv = conn_inv.cursor()
+            cur_inv.execute("DELETE FROM inventario WHERE colecionador_id=?", (self.record_id,))
+            cur_inv.execute("DELETE FROM lista_desejos WHERE colecionador_id=?", (self.record_id,))
+            conn_inv.commit()
+            conn_inv.close()
+
+            # Remove o colecionador do banco principal
+            conn = sqlite3.connect(DB_NAME)
+            cur = conn.cursor()
+            cur.execute("DELETE FROM colecionadores WHERE id=?", (self.record_id,))
+            conn.commit()
+            conn.close()
+
+            messagebox.showinfo("Conta Excluída", "Sua conta foi excluída com sucesso.")
+            self.logout()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao excluir conta: {e}")
 
     def _build_main_ui(self):
         self.columnconfigure(0, weight=0)
