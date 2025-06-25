@@ -7,7 +7,7 @@ PokeBrothers é um sistema de gerenciamento de coleções de cartas Pokémon, pe
 ```
 PokeBrothers/
 ├── colecionadores.db           # Banco de dados dos colecionadores
-├── inventario.db               # Banco de dados do inventário e lista de desejos
+├── inventario.db               # Banco de dados do inventário
 ├── main.py                     # Arquivo principal, inicializa a aplicação
 ├── requirements.txt            # Dependências do projeto
 ├── readme.MD                   # Este arquivo
